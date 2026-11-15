@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CareCircle: shared medication, appointment and adherence management for elderly people, their caretakers and family.">
+  <title>CareCircle</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to main content</a>
+  <header class="topbar">
+    <h1 class="brand">CareCircle</h1>
+    <div class="tools" role="group" aria-label="Display options">
+      <button type="button" id="textSize" aria-pressed="false">Larger text</button>
+      <button type="button" id="contrast" aria-pressed="false">High contrast</button>
+      <button type="button" id="logout" hidden>Sign out</button>
+    </div>
+  </header>
+  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+
+  <main id="main" tabindex="-1">
+    <!-- AUTH -->
+    <section id="authView" aria-labelledby="authTitle">
+      <h2 id="authTitle">Care for the people you love, together</h2>
+      <p class="lead">One shared, passcode-protected space where an elderly person, their caretakers and family manage medicines, doctor visits and daily routines — with automatic email reminders.</p>
+      <div class="grid2">
+        <form id="joinForm" class="card" novalidate>
+          <h3>Sign in / join a care circle</h3>
+          <label for="jCode">Care code</label>
+          <input id="jCode" name="profileId" required autocomplete="off" placeholder="CC-XXXXXXXX">
+          <label for="jPass">Shared passcode</label>
+          <input id="jPass" name="passcode" type="password" required autocomplete="current-password">
+          <label for="jName">Your name</label>
+          <input id="jName" name="name" required autocomplete="name">
+          <label for="jEmail">Your email (for reminders)</label>
+          <input id="jEmail" name="email" type="email" autocomplete="email">
+          <label for="jRole">I am the</label>
+          <select id="jRole" name="role">
+            <option value="family">Family member</option>
+            <option value="caretaker">Caretaker</option>
+            <option value="elder">Person receiving care</option>
+          </select>
+          <button class="primary" type="submit">Open care circle</button>
+        </form>
+        <form id="createForm" class="card" novalidate>
+          <h3>Start a new care circle</h3>
+          <label for="cName">Name of the person receiving care</label>
+          <input id="cName" name="name" required>
+          <label for="cDob">Date of birth</label>
+          <input id="cDob" name="dob" type="date">
+          <label for="cPass">Choose a shared passcode (min 6 characters)</label>
+          <input id="cPass" name="passcode" type="password" minlength="6" required autocomplete="new-password">
+          <label for="cYour">Your name</label>
+          <input id="cYour" name="yourName" required autocomplete="name">
+          <label for="cEmail">Your email</label>
+          <input id="cEmail" name="yourEmail" type="email" autocomplete="email">
+          <label for="cRole">I am the</label>
+          <select id="cRole" name="yourRole">
+            <option value="caretaker">Caretaker</option>
+            <option value="family">Family member</option>
+            <option value="elder">Person receiving care</option>
+          </select>
+          <button class="primary" type="submit">Create care circle</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- APP -->
+    <section id="appView" hidden aria-labelledby="who">
+      <div class="hello">
+        <h2 id="who"></h2>
+        <p id="codeLine" class="muted"></p>
+      </div>
+      <nav aria-label="Sections">
+        <div role="tablist" class="tabs" id="tabs">
+          <button role="tab" id="tab-today" aria-controls="panel-today" aria-selected="true">Today</button>
+          <button role="tab" id="tab-meds" aria-controls="panel-meds" aria-selected="false" tabindex="-1">Medications</button>
+          <button role="tab" id="tab-appts" aria-controls="panel-appts" aria-selected="false" tabindex="-1">Appointments</button>
+          <button role="tab" id="tab-health" aria-controls="panel-health" aria-selected="false" tabindex="-1">Progress</button>
+          <button role="tab" id="tab-circle" aria-controls="panel-circle" aria-selected="false" tabindex="-1">Care circle</button>
+        </div>
+      </nav>
+
+      <div role="tabpanel" id="panel-today" aria-labelledby="tab-today">
+        <div class="row">
+          <h3>Today's medicines</h3>
+          <button type="button" id="readAloud">Read today aloud</button>
+        </div>
+        <div id="insightList" aria-live="polite"></div>
+        <ul id="todayList" class="doses"></ul>
+        <h3>Next appointment</h3>
+        <div id="nextAppt"></div>
+      </div>
+
+      <div role="tabpanel" id="panel-meds" aria-labelledby="tab-meds" hidden>
+        <form id="medForm" class="card" novalidate>
+          <h3 id="medFormTitle">Add a medication</h3>
+          <input type="hidden" name="id">
+          <div class="grid2">
+            <div><label for="mName">Medicine name</label><input id="mName" name="name" required></div>
+            <div><label for="mDose">Dosage</label><input id="mDose" name="dosage" placeholder="e.g. 1 tablet, 500 mg"></div>
+            <div><label for="mTimes">Times (comma separated, 24h)</label><input id="mTimes" name="times" required placeholder="08:00, 20:00"></div>
+            <div><label for="mStock">Pills in stock</label><input id="mStock" name="stock" type="number" min="0" inputmode="numeric"></div>
+            <div><label for="mStart">Start date</label><input id="mStart" name="startDate" type="date"></div>
+            <div><label for="mEnd">End date (optional)</label><input id="mEnd" name="endDate" type="date"></div>
+          </div>
+          <label for="mInstr">Instructions</label>
+          <input id="mInstr" name="instructions" placeholder="e.g. after food">
+          <div class="row">
+            <button class="primary" type="submit">Save medication</button>
+            <button type="button" id="medCancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+        <ul id="medList" class="list"></ul>
+      </div>
+
+      <div role="tabpanel" id="panel-appts" aria-labelledby="tab-appts" hidden>
+        <form id="apptForm" class="card" novalidate>
+          <h3 id="apptFormTitle">Add an appointment</h3>
+          <input type="hidden" name="id">
+          <div class="grid2">
+            <div><label for="aDoc">Doctor</label><input id="aDoc" name="doctor" required></div>
+            <div><label for="aSpec">Specialty</label><input id="aSpec" name="specialty"></div>
+            <div><label for="aDate">Date</label><input id="aDate" name="date" type="date" required></div>
+            <div><label for="aTime">Time</label><input id="aTime" name="time" type="time" required></div>
+          </div>
+          <label for="aLoc">Location</label><input id="aLoc" name="location">
+          <label for="aNotes">Notes / questions for the doctor</label><textarea id="aNotes" name="notes" rows="2"></textarea>
+          <div class="row">
+            <button class="primary" type="submit">Save appointment</button>
+            <button type="button" id="apptCancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+        <ul id="apptList" class="list"></ul>
+      </div>
+
+      <div role="tabpanel" id="panel-health" aria-labelledby="tab-health" hidden>
+        <h3>Adherence — last 7 days</h3>
+        <div id="adherenceSummary" class="stats"></div>
+        <div id="adherenceChart" class="bars" role="img"></div>
+        <h3>By medicine</h3>
+        <ul id="perMed" class="list"></ul>
+        <h3>Recent activity</h3>
+        <ol id="activity" class="activity"></ol>
+      </div>
+
+      <div role="tabpanel" id="panel-circle" aria-labelledby="tab-circle" hidden>
+        <div class="grid2">
+          <form id="profileForm" class="card" novalidate>
+            <h3>Health profile &amp; emergency card</h3>
+            <label for="pName">Name</label><input id="pName" name="name" required>
+            <label for="pDob">Date of birth</label><input id="pDob" name="dob" type="date">
+            <label for="pCond">Conditions</label><textarea id="pCond" name="conditions" rows="2"></textarea>
+            <label for="pAll">Allergies</label><textarea id="pAll" name="allergies" rows="2"></textarea>
+            <label for="pEm">Emergency contact</label><input id="pEm" name="emergencyContact">
+            <label for="pDoc">Primary doctor</label><input id="pDoc" name="doctorContact">
+            <div class="row">
+              <button class="primary" type="submit">Save profile</button>
+              <button type="button" id="printCard">Print emergency card</button>
+            </div>
+          </form>
+          <div>
+            <div class="card">
+              <h3>Members</h3>
+              <ul id="memberList" class="list"></ul>
+              <p class="muted">Invite others by sharing the care code and passcode. They choose their role when joining.</p>
+            </div>
+            <form id="passForm" class="card" novalidate>
+              <h3>Change shared passcode</h3>
+              <label for="pwCur">Current passcode</label><input id="pwCur" name="current" type="password" required autocomplete="current-password">
+              <label for="pwNew">New passcode</label><input id="pwNew" name="next" type="password" minlength="6" required autocomplete="new-password">
+              <button type="submit">Change passcode</button>
+              <p class="muted">Everyone else will need the new passcode to sign in again.</p>
+            </form>
+            <div class="card">
+              <h3>Email reminders</h3>
+              <p id="emailMode" class="muted"></p>
+              <button type="button" id="runReminders">Send due reminders now</button>
+              <ul id="outbox" class="list small"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="emergencyCard" class="print-only" aria-hidden="true"></section>
+  <script src="/app.js"></script>
+</body>
+</html>

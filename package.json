@@ -1,0 +1,16 @@
+{
+  "name": "carecircle",
+  "version": "1.0.0",
+  "description": "CareCircle - elderly care & medication management platform with shared passcode access, adherence tracking and email reminders",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "nodemailer": "^6.9.16"
+  }
+}
