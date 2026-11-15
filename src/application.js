@@ -10,6 +10,11 @@ const accessRoutes = require('./routes/access');
 const careRoutes = require('./routes/care');
 const assistantRoutes = require('./routes/assistant');
 
+/**
+ * Compose the Express app from injected services so tests can swap storage, mail, AI and OAuth.
+ * @param {{ store: object, mailer: object, ai?: object, oauth?: object }} deps
+ * @returns {import('express').Express}
+ */
 function createApp({ store, mailer, ai = createAI(), oauth = createOAuth() }) {
   const app = express();
   app.disable('x-powered-by');

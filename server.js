@@ -16,9 +16,14 @@ app.use(createApp({ store, mailer }));
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
-  app.listen(port, () => console.log(`CareCircle on :${port} (storage: ${store.kind}, email: ${mailer.mode})`));
+  app.listen(port, () =>
+    console.info(`CareCircle on :${port} (storage: ${store.kind}, email: ${mailer.mode})`),
+  );
   const interval = Number(process.env.REMINDER_INTERVAL_MS || 60000);
-  setInterval(() => runReminders(store, mailer).catch((e) => console.error('reminder loop:', e.message)), interval).unref();
+  setInterval(
+    () => runReminders(store, mailer).catch((e) => console.error('reminder loop:', e.message)),
+    interval,
+  ).unref();
 }
 
 module.exports = app;

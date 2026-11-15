@@ -17,31 +17,54 @@ class FileStore {
     this.file = file;
     this.data = { profiles: {}, sent: {}, outbox: {} };
     if (file && fs.existsSync(file)) {
-      try { this.data = { ...this.data, ...JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch { /* corrupt file: start fresh */ }
+      try {
+        this.data = { ...this.data, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
+      } catch {
+        /* corrupt file: start fresh */
+      }
     }
     this.timer = null;
   }
-  expired(p) { return p && p.expiresAt && Date.parse(p.expiresAt) < Date.now(); }
+  expired(p) {
+    return p && p.expiresAt && Date.parse(p.expiresAt) < Date.now();
+  }
   async getProfile(id) {
     const p = this.data.profiles[id];
-    if (!p || this.expired(p)) return null;
+    if (!p || this.expired(p)) {
+      return null;
+    }
     return structuredClone(p);
   }
-  async saveProfile(p) { this.data.profiles[p.id] = structuredClone(p); this.persist(); return p; }
-  async deleteProfile(id) { delete this.data.profiles[id]; this.persist(); }
+  async saveProfile(p) {
+    this.data.profiles[p.id] = structuredClone(p);
+    this.persist();
+    return p;
+  }
+  async deleteProfile(id) {
+    delete this.data.profiles[id];
+    this.persist();
+  }
   async listProfileIds() {
-    return Object.values(this.data.profiles).filter((p) => !this.expired(p)).map((p) => p.id);
+    return Object.values(this.data.profiles)
+      .filter((p) => !this.expired(p))
+      .map((p) => p.id);
   }
   async findProfileIdsByEmail(email) {
     return Object.values(this.data.profiles)
       .filter((p) => !this.expired(p) && p.members.some((m) => m.email === email))
       .map((p) => p.id);
   }
-  async wasSent(key) { return Boolean(this.data.sent[key]); }
+  async wasSent(key) {
+    return Boolean(this.data.sent[key]);
+  }
   async markSent(key) {
     this.data.sent[key] = Date.now();
     const cutoff = Date.now() - SENT_TTL_S * 1000;
-    for (const [k, at] of Object.entries(this.data.sent)) if (at < cutoff) delete this.data.sent[k];
+    for (const [k, at] of Object.entries(this.data.sent)) {
+      if (at < cutoff) {
+        delete this.data.sent[k];
+      }
+    }
     this.persist();
   }
   async pushOutbox(profileId, msg) {
@@ -50,9 +73,13 @@ class FileStore {
     box.length = Math.min(box.length, OUTBOX_MAX);
     this.persist();
   }
-  async getOutbox(profileId) { return this.data.outbox[profileId] || []; }
+  async getOutbox(profileId) {
+    return this.data.outbox[profileId] || [];
+  }
   persist() {
-    if (!this.file || this.timer) return;
+    if (!this.file || this.timer) {
+      return;
+    }
     this.timer = setTimeout(() => {
       this.timer = null;
       try {
@@ -60,7 +87,9 @@ class FileStore {
         const tmp = `${this.file}.tmp`;
         fs.writeFileSync(tmp, JSON.stringify(this.data));
         fs.renameSync(tmp, this.file);
-      } catch (e) { console.error('persist failed:', e.message); }
+      } catch (e) {
+        console.error('persist failed:', e.message);
+      }
     }, 50);
     this.timer.unref?.();
   }
@@ -80,43 +109,76 @@ class RedisStore {
       body: JSON.stringify(commands),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) throw new Error(`redis http ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`redis http ${res.status}`);
+    }
     const out = await res.json();
     const err = out.find((r) => r.error);
-    if (err) throw new Error(`redis: ${err.error}`);
+    if (err) {
+      throw new Error(`redis: ${err.error}`);
+    }
     return out.map((r) => r.result);
   }
-  async cmd(...args) { return (await this.pipeline([args]))[0]; }
+  async cmd(...args) {
+    return (await this.pipeline([args]))[0];
+  }
   async getProfile(id) {
     const raw = await this.cmd('GET', `profile:${id}`);
     return raw ? JSON.parse(raw) : null;
   }
   async saveProfile(p) {
     const set = ['SET', `profile:${p.id}`, JSON.stringify(p)];
-    if (p.expiresAt) set.push('PXAT', String(Date.parse(p.expiresAt)));
+    if (p.expiresAt) {
+      set.push('PXAT', String(Date.parse(p.expiresAt)));
+    }
     const cmds = [set, ['SADD', 'profiles', p.id]];
-    for (const m of p.members) if (m.email) cmds.push(['SADD', `email:${m.email}`, p.id]);
+    for (const m of p.members) {
+      if (m.email) {
+        cmds.push(['SADD', `email:${m.email}`, p.id]);
+      }
+    }
     await this.pipeline(cmds);
     return p;
   }
-  async deleteProfile(id) { await this.pipeline([['DEL', `profile:${id}`], ['SREM', 'profiles', id]]); }
+  async deleteProfile(id) {
+    await this.pipeline([
+      ['DEL', `profile:${id}`],
+      ['SREM', 'profiles', id],
+    ]);
+  }
   async listProfileIds() {
     const ids = await this.cmd('SMEMBERS', 'profiles');
-    if (!ids.length) return [];
+    if (!ids.length) {
+      return [];
+    }
     const exists = await this.pipeline(ids.map((id) => ['EXISTS', `profile:${id}`]));
     const gone = ids.filter((_, i) => !exists[i]);
-    if (gone.length) await this.cmd('SREM', 'profiles', ...gone);
+    if (gone.length) {
+      await this.cmd('SREM', 'profiles', ...gone);
+    }
     return ids.filter((_, i) => exists[i]);
   }
-  async findProfileIdsByEmail(email) { return this.cmd('SMEMBERS', `email:${email}`); }
-  async wasSent(key) { return Boolean(await this.cmd('EXISTS', `sent:${key}`)); }
-  async markSent(key) { await this.cmd('SET', `sent:${key}`, '1', 'EX', String(SENT_TTL_S)); }
+  async findProfileIdsByEmail(email) {
+    return this.cmd('SMEMBERS', `email:${email}`);
+  }
+  async wasSent(key) {
+    return Boolean(await this.cmd('EXISTS', `sent:${key}`));
+  }
+  async markSent(key) {
+    await this.cmd('SET', `sent:${key}`, '1', 'EX', String(SENT_TTL_S));
+  }
   async pushOutbox(profileId, msg) {
     const k = `outbox:${profileId}`;
-    await this.pipeline([['LPUSH', k, JSON.stringify(msg)], ['LTRIM', k, '0', String(OUTBOX_MAX - 1)], ['EXPIRE', k, String(7 * 24 * 3600)]]);
+    await this.pipeline([
+      ['LPUSH', k, JSON.stringify(msg)],
+      ['LTRIM', k, '0', String(OUTBOX_MAX - 1)],
+      ['EXPIRE', k, String(7 * 24 * 3600)],
+    ]);
   }
   async getOutbox(profileId) {
-    return (await this.cmd('LRANGE', `outbox:${profileId}`, '0', String(OUTBOX_MAX - 1))).map((s) => JSON.parse(s));
+    return (await this.cmd('LRANGE', `outbox:${profileId}`, '0', String(OUTBOX_MAX - 1))).map((s) =>
+      JSON.parse(s),
+    );
   }
 }
 
@@ -124,8 +186,12 @@ class RedisStore {
 function createStore(env = process.env) {
   const url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
   const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) return new RedisStore({ url, token });
-  const fallback = env.VERCEL ? '/tmp/carecircle/db.json' : path.join(__dirname, '..', 'data', 'db.json');
+  if (url && token) {
+    return new RedisStore({ url, token });
+  }
+  const fallback = env.VERCEL
+    ? '/tmp/carecircle/db.json'
+    : path.join(__dirname, '..', 'data', 'db.json');
   return new FileStore(env.DATA_FILE || fallback);
 }
 

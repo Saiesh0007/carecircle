@@ -21,15 +21,32 @@ function createMailer({ store, env = process.env } = {}) {
     return {
       mode: 'smtp',
       async send(msg, profileId) {
-        await transport.sendMail({ from: env.MAIL_FROM || env.SMTP_USER, to: msg.to, subject: msg.subject, text: msg.text });
-        if (store && profileId) await store.pushOutbox(profileId, { ...msg, at: new Date().toISOString(), delivered: true });
+        await transport.sendMail({
+          from: env.MAIL_FROM || env.SMTP_USER,
+          to: msg.to,
+          subject: msg.subject,
+          text: msg.text,
+        });
+        if (store && profileId) {
+          await store.pushOutbox(profileId, {
+            ...msg,
+            at: new Date().toISOString(),
+            delivered: true,
+          });
+        }
       },
     };
   }
   return {
     mode: 'dry-run',
     async send(msg, profileId) {
-      if (store && profileId) await store.pushOutbox(profileId, { ...msg, at: new Date().toISOString(), delivered: false });
+      if (store && profileId) {
+        await store.pushOutbox(profileId, {
+          ...msg,
+          at: new Date().toISOString(),
+          delivered: false,
+        });
+      }
     },
   };
 }
@@ -37,20 +54,31 @@ function createMailer({ store, env = process.env } = {}) {
 const EVERYONE = ['elder', 'caretaker', 'family'];
 const CARERS = ['caretaker', 'family'];
 
+/** Members with an email who have not opted out and whose role is in `roles`. */
 function recipients(profile, roles) {
   return profile.members.filter((m) => m.email && m.notify !== false && roles.includes(m.role));
 }
 
-/** Build one localized email per recipient for a reminder. */
-function compose(profile, roles, keyBase, subjectKey, bodyKey, params) {
+/**
+ * Build one localized email per opted-in recipient for a reminder.
+ * @param {object} profile care circle
+ * @param {{ roles: string[], key: string, kind: string, params: object }} reminder
+ *   `key` is the de-duplication base; `kind` selects the `<kind>Subject` / `<kind>Body` templates.
+ */
+function compose(profile, { roles, key: keyBase, kind, params }) {
+  const subjectKey = `${kind}Subject`;
+  const bodyKey = `${kind}Body`;
   return recipients(profile, roles).map((m) => {
     const lang = i18n.normLang(m.lang);
     const p = {
-      name: profile.name, ...params,
+      name: profile.name,
+      ...params,
       dosage: params.dosage || i18n.email(lang, 'asPrescribed'),
       location: params.location || i18n.email(lang, 'na'),
       notes: params.notes || i18n.email(lang, 'na'),
-      instructions: params.instructions ? i18n.email(lang, 'instructionsLine', { text: params.instructions }) : '',
+      instructions: params.instructions
+        ? i18n.email(lang, 'instructionsLine', { text: params.instructions })
+        : '',
     };
     return {
       key: `${keyBase}|${m.id}`,
@@ -71,39 +99,86 @@ function dueReminders(profile, now = localParts()) {
     const diff = toMinutes(s.time) - now.minutes;
     const params = { med: s.name, time: s.time, dosage: s.dosage, instructions: s.instructions };
     if (s.status === 'pending' && diff >= 0 && diff <= UPCOMING_LEAD_MIN) {
-      out.push(...compose(profile, EVERYONE, `up|${profile.id}|${s.medId}|${s.date}|${s.time}`, 'upcomingSubject', 'upcomingBody', params));
+      out.push(
+        ...compose(profile, {
+          roles: EVERYONE,
+          key: `up|${profile.id}|${s.medId}|${s.date}|${s.time}`,
+          kind: 'upcoming',
+          params,
+        }),
+      );
     }
     if (s.status === 'missed') {
-      out.push(...compose(profile, EVERYONE, `miss|${profile.id}|${s.medId}|${s.date}|${s.time}`, 'missedSubject', 'missedBody', params));
+      out.push(
+        ...compose(profile, {
+          roles: EVERYONE,
+          key: `miss|${profile.id}|${s.medId}|${s.date}|${s.time}`,
+          kind: 'missed',
+          params,
+        }),
+      );
     }
   }
   for (const a of profile.appointments) {
-    const params = { doctor: a.doctor, time: a.time, date: a.date, location: a.location, notes: a.notes };
+    const params = {
+      doctor: a.doctor,
+      time: a.time,
+      date: a.date,
+      location: a.location,
+      notes: a.notes,
+    };
     if (a.date === addDays(now.date, 1)) {
-      out.push(...compose(profile, EVERYONE, `appt1d|${profile.id}|${a.id}|${a.date}`, 'apptTomorrowSubject', 'apptTomorrowBody', params));
+      out.push(
+        ...compose(profile, {
+          roles: EVERYONE,
+          key: `appt1d|${profile.id}|${a.id}|${a.date}`,
+          kind: 'apptTomorrow',
+          params,
+        }),
+      );
     }
     if (a.date === now.date) {
       const diff = toMinutes(a.time) - now.minutes;
       if (diff >= 0 && diff <= 120) {
-        out.push(...compose(profile, EVERYONE, `appt2h|${profile.id}|${a.id}|${a.date}`, 'apptSoonSubject', 'apptSoonBody', params));
+        out.push(
+          ...compose(profile, {
+            roles: EVERYONE,
+            key: `appt2h|${profile.id}|${a.id}|${a.date}`,
+            kind: 'apptSoon',
+            params,
+          }),
+        );
       }
     }
   }
   for (const m of profile.medications.filter((x) => x.active !== false)) {
     const days = daysOfStockLeft(m);
     if (days !== null && days <= 3) {
-      out.push(...compose(profile, CARERS, `stock|${profile.id}|${m.id}|${now.date}`, 'refillSubject', 'refillBody', { med: m.name, days, stock: m.stock }));
+      out.push(
+        ...compose(profile, {
+          roles: CARERS,
+          key: `stock|${profile.id}|${m.id}|${now.date}`,
+          kind: 'refill',
+          params: { med: m.name, days, stock: m.stock },
+        }),
+      );
     }
   }
   return out;
 }
 
+/** Due reminders for a profile that have not been sent yet. */
 async function collectReminders(profile, store, now = localParts()) {
   const due = dueReminders(profile, now);
   const sent = await Promise.all(due.map((r) => store.wasSent(r.key)));
   return due.filter((_, i) => !sent[i]);
 }
 
+/**
+ * Send every unsent due reminder for one circle. A reminder is marked sent only after the
+ * transport succeeds, so failures are retried on the next tick. Demo circles never use SMTP.
+ * @returns {Promise<number>} emails sent
+ */
 async function remindProfile(profile, store, mailer, now = localParts()) {
   // Demo circles use example.com addresses: never send real mail for them.
   const sender = profile.demo && mailer.mode === 'smtp' ? createMailer({ store, env: {} }) : mailer;
@@ -113,18 +188,30 @@ async function remindProfile(profile, store, mailer, now = localParts()) {
       await sender.send(r.msg, profile.id);
       await store.markSent(r.key);
       sent += 1;
-    } catch (e) { console.error('email failed:', e.message); }
+    } catch (e) {
+      console.error('email failed:', e.message);
+    }
   }
   return sent;
 }
 
+/** One reminder tick across every stored circle. @returns {Promise<number>} emails sent */
 async function runReminders(store, mailer, now = localParts()) {
   let sent = 0;
   for (const id of await store.listProfileIds()) {
     const profile = await store.getProfile(id);
-    if (profile) sent += await remindProfile(profile, store, mailer, now);
+    if (profile) {
+      sent += await remindProfile(profile, store, mailer, now);
+    }
   }
   return sent;
 }
 
-module.exports = { createMailer, dueReminders, collectReminders, remindProfile, runReminders, recipients };
+module.exports = {
+  createMailer,
+  dueReminders,
+  collectReminders,
+  remindProfile,
+  runReminders,
+  recipients,
+};

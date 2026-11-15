@@ -74,7 +74,7 @@ src/
   oauth.js              Google (PKCE) + GitHub OAuth 2.0
   store.js              Async storage: Upstash Redis (REST) or JSON file
   auth.js, http.js, validate.js, i18n.js, time.js, demo.js
-test/                   49 tests (node:test): API, domain, AI, OAuth, reminders, storage, i18n
+test/                   51 tests (node:test): API, domain, AI, OAuth, reminders, storage, i18n
 ```
 
 - **Runtime:** Node 22 and Express. There are only two production dependencies, `express` and `nodemailer`. The Groq, Upstash and OAuth calls use the built-in `fetch`.
@@ -109,12 +109,19 @@ test/                   49 tests (node:test): API, domain, AI, OAuth, reminders,
 - Voice input and a **read-aloud** daily summary for people with low vision or low literacy.
 - Responsive layout from 320 px phones (with bottom navigation) up to wide desktops, including safe-area insets. The site can be installed as a web app (manifest).
 
-## 6. Testing
+## 6. Testing and code quality
 ```bash
 npm install
-npm run lint     # ESLint (flat config), 0 issues
-npm test         # 49 tests, node:test, no network: Groq/OAuth/Upstash are faked
+npm run check    # lint + formatting check + all tests (also runs in CI on every push)
+npm run lint     # ESLint flat config with strict rules, 0 issues
+npm test         # 51 tests, node:test, no network: Groq/OAuth/Upstash are faked
+npm run format   # Prettier (100 columns), enforced in CI
 ```
+- **Structure:** pure domain logic (`care.js`, `reminders.js`) is kept apart from HTTP routes, storage and the AI client. Services are dependency-injected into `createApp`, so tests swap in a fake store, mailer, AI and OAuth.
+- **Consistency:** Prettier owns formatting, `.editorconfig` covers editors, and ESLint enforces braces, `===`, no shadowing, no parameter reassignment, template literals, a maximum nesting depth, a parameter count and a complexity budget.
+- **Documentation:** every module starts with a header comment, and exported functions carry JSDoc.
+- **CI:** GitHub Actions runs lint, the formatting check and the tests on Node 22 for every push and pull request.
+
 The tests cover:
 - authentication and tampered tokens
 - validation messages in English and Hindi

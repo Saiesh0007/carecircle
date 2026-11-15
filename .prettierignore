@@ -1,0 +1,8 @@
+node_modules
+data
+.vercel
+package-lock.json
+vercel.json
+*.md
+public/index.html
+public/css

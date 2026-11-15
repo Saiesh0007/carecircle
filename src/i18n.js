@@ -7,18 +7,64 @@ const LANGS = ['en', 'hi'];
 
 const FIELDS = {
   en: {
-    name: 'Name', dob: 'Date of birth', passcode: 'Passcode', yourName: 'Your name', yourEmail: 'Your email', email: 'Email',
-    profileId: 'Care code', conditions: 'Conditions', allergies: 'Allergies', emergencyContact: 'Emergency contact',
-    doctorContact: 'Doctor', dosage: 'Dosage', instructions: 'Instructions', times: 'Times', startDate: 'Start date',
-    endDate: 'End date', stock: 'Stock', doctor: 'Doctor', specialty: 'Specialty', location: 'Location', notes: 'Notes',
-    date: 'Date', time: 'Time', days: 'Days', role: 'Role', message: 'Message', text: 'Text', lang: 'Language',
+    name: 'Name',
+    dob: 'Date of birth',
+    passcode: 'Passcode',
+    yourName: 'Your name',
+    yourEmail: 'Your email',
+    email: 'Email',
+    profileId: 'Care code',
+    conditions: 'Conditions',
+    allergies: 'Allergies',
+    emergencyContact: 'Emergency contact',
+    doctorContact: 'Doctor',
+    dosage: 'Dosage',
+    instructions: 'Instructions',
+    times: 'Times',
+    startDate: 'Start date',
+    endDate: 'End date',
+    stock: 'Stock',
+    doctor: 'Doctor',
+    specialty: 'Specialty',
+    location: 'Location',
+    notes: 'Notes',
+    date: 'Date',
+    time: 'Time',
+    days: 'Days',
+    role: 'Role',
+    message: 'Message',
+    text: 'Text',
+    lang: 'Language',
   },
   hi: {
-    name: 'नाम', dob: 'जन्म तिथि', passcode: 'पासकोड', yourName: 'आपका नाम', yourEmail: 'आपका ईमेल', email: 'ईमेल',
-    profileId: 'केयर कोड', conditions: 'बीमारियाँ', allergies: 'एलर्जी', emergencyContact: 'आपातकालीन संपर्क',
-    doctorContact: 'डॉक्टर', dosage: 'खुराक', instructions: 'निर्देश', times: 'समय', startDate: 'शुरू होने की तिथि',
-    endDate: 'समाप्ति तिथि', stock: 'स्टॉक', doctor: 'डॉक्टर', specialty: 'विशेषज्ञता', location: 'स्थान', notes: 'नोट्स',
-    date: 'तारीख', time: 'समय', days: 'दिन', role: 'भूमिका', message: 'संदेश', text: 'पाठ', lang: 'भाषा',
+    name: 'नाम',
+    dob: 'जन्म तिथि',
+    passcode: 'पासकोड',
+    yourName: 'आपका नाम',
+    yourEmail: 'आपका ईमेल',
+    email: 'ईमेल',
+    profileId: 'केयर कोड',
+    conditions: 'बीमारियाँ',
+    allergies: 'एलर्जी',
+    emergencyContact: 'आपातकालीन संपर्क',
+    doctorContact: 'डॉक्टर',
+    dosage: 'खुराक',
+    instructions: 'निर्देश',
+    times: 'समय',
+    startDate: 'शुरू होने की तिथि',
+    endDate: 'समाप्ति तिथि',
+    stock: 'स्टॉक',
+    doctor: 'डॉक्टर',
+    specialty: 'विशेषज्ञता',
+    location: 'स्थान',
+    notes: 'नोट्स',
+    date: 'तारीख',
+    time: 'समय',
+    days: 'दिन',
+    role: 'भूमिका',
+    message: 'संदेश',
+    text: 'पाठ',
+    lang: 'भाषा',
   },
 };
 
@@ -36,7 +82,7 @@ const MESSAGES = {
     invalidRole: 'Role must be elder, caretaker or family',
     endBeforeStart: 'End date must be after the start date',
     futureDose: 'You cannot record a dose for a future date',
-    timeNotInSchedule: 'That time is not part of this medicine\'s schedule',
+    timeNotInSchedule: "That time is not part of this medicine's schedule",
     invalidStatus: 'Status must be taken, skipped or undo',
     badCredentials: 'Care code or passcode is incorrect.',
     sessionInvalid: 'Your session has ended. Please sign in again.',
@@ -96,49 +142,64 @@ const MESSAGES = {
 const EMAILS = {
   en: {
     upcomingSubject: 'Upcoming dose: {med} at {time}',
-    upcomingBody: 'Hello,\n\n{name} has a dose of {med} ({dosage}) due at {time}.\n{instructions}\nPlease mark it as taken in CareCircle once done.',
+    upcomingBody:
+      'Hello,\n\n{name} has a dose of {med} ({dosage}) due at {time}.\n{instructions}\nPlease mark it as taken in CareCircle once done.',
     missedSubject: 'Missed dose alert: {med} ({time})',
-    missedBody: 'Hello,\n\nThe {time} dose of {med} for {name} has not been marked as taken.\nPlease check in and record the dose in CareCircle.',
+    missedBody:
+      'Hello,\n\nThe {time} dose of {med} for {name} has not been marked as taken.\nPlease check in and record the dose in CareCircle.',
     apptTomorrowSubject: 'Appointment tomorrow: {doctor} at {time}',
-    apptTomorrowBody: 'Reminder: {name} has an appointment with {doctor} on {date} at {time}.\nLocation: {location}\nNotes: {notes}\n\nPlease arrange transport and bring the current medication list.',
+    apptTomorrowBody:
+      'Reminder: {name} has an appointment with {doctor} on {date} at {time}.\nLocation: {location}\nNotes: {notes}\n\nPlease arrange transport and bring the current medication list.',
     apptSoonSubject: 'Appointment soon: {doctor} at {time}',
     apptSoonBody: '{name} has an appointment with {doctor} today at {time}. Location: {location}.',
     refillSubject: 'Refill needed: {med}',
-    refillBody: '{med} for {name} has about {days} day(s) of stock left ({stock} units). Please arrange a refill.',
+    refillBody:
+      '{med} for {name} has about {days} day(s) of stock left ({stock} units). Please arrange a refill.',
     summarySubject: 'Weekly care summary for {name}',
     asPrescribed: 'as prescribed',
     instructionsLine: 'Instructions: {text}',
     na: 'not specified',
-    footer: '\n\n— CareCircle. You receive this because you are part of {name}\'s care circle. You can turn off emails in the Care circle settings.',
+    footer:
+      "\n\n— CareCircle. You receive this because you are part of {name}'s care circle. You can turn off emails in the Care circle settings.",
   },
   hi: {
     upcomingSubject: 'आने वाली खुराक: {med} {time} बजे',
-    upcomingBody: 'नमस्ते,\n\n{name} की {med} ({dosage}) की खुराक {time} बजे लेनी है।\n{instructions}\nखुराक लेने के बाद CareCircle में "ली गई" चिह्नित करें।',
+    upcomingBody:
+      'नमस्ते,\n\n{name} की {med} ({dosage}) की खुराक {time} बजे लेनी है।\n{instructions}\nखुराक लेने के बाद CareCircle में "ली गई" चिह्नित करें।',
     missedSubject: 'छूटी खुराक की सूचना: {med} ({time})',
-    missedBody: 'नमस्ते,\n\n{name} की {time} बजे की {med} की खुराक अभी तक ली गई के रूप में दर्ज नहीं हुई है।\nकृपया संपर्क करें और CareCircle में खुराक दर्ज करें।',
+    missedBody:
+      'नमस्ते,\n\n{name} की {time} बजे की {med} की खुराक अभी तक ली गई के रूप में दर्ज नहीं हुई है।\nकृपया संपर्क करें और CareCircle में खुराक दर्ज करें।',
     apptTomorrowSubject: 'कल अपॉइंटमेंट: {doctor} {time} बजे',
-    apptTomorrowBody: 'याद दिलाना: {name} का {date} को {time} बजे {doctor} के साथ अपॉइंटमेंट है।\nस्थान: {location}\nनोट्स: {notes}\n\nकृपया आने-जाने की व्यवस्था करें और दवाओं की सूची साथ रखें।',
+    apptTomorrowBody:
+      'याद दिलाना: {name} का {date} को {time} बजे {doctor} के साथ अपॉइंटमेंट है।\nस्थान: {location}\nनोट्स: {notes}\n\nकृपया आने-जाने की व्यवस्था करें और दवाओं की सूची साथ रखें।',
     apptSoonSubject: 'जल्द अपॉइंटमेंट: {doctor} {time} बजे',
     apptSoonBody: '{name} का आज {time} बजे {doctor} के साथ अपॉइंटमेंट है। स्थान: {location}।',
     refillSubject: 'दवा दोबारा मंगवाएँ: {med}',
-    refillBody: '{name} की {med} लगभग {days} दिन की ही बची है ({stock} यूनिट)। कृपया दवा मंगवाने की व्यवस्था करें।',
+    refillBody:
+      '{name} की {med} लगभग {days} दिन की ही बची है ({stock} यूनिट)। कृपया दवा मंगवाने की व्यवस्था करें।',
     summarySubject: '{name} की साप्ताहिक देखभाल रिपोर्ट',
     asPrescribed: 'डॉक्टर के अनुसार',
     instructionsLine: 'निर्देश: {text}',
     na: 'उल्लेख नहीं',
-    footer: '\n\n— CareCircle. आपको यह ईमेल इसलिए मिला क्योंकि आप {name} के केयर सर्कल का हिस्सा हैं। आप केयर सर्कल सेटिंग में ईमेल बंद कर सकते हैं।',
+    footer:
+      '\n\n— CareCircle. आपको यह ईमेल इसलिए मिला क्योंकि आप {name} के केयर सर्कल का हिस्सा हैं। आप केयर सर्कल सेटिंग में ईमेल बंद कर सकते हैं।',
   },
 };
 
 const normLang = (l) => (LANGS.includes(l) ? l : 'en');
+/** Replace `{name}` placeholders with params; unknown placeholders are left as-is. */
 function fill(str, params = {}) {
-  return String(str).replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? String(params[k]) : `{${k}}`));
+  return String(str).replace(/\{(\w+)\}/g, (_, k) =>
+    params[k] !== undefined ? String(params[k]) : `{${k}}`,
+  );
 }
+/** Translate a server message key, falling back to English and then to the key itself. */
 function t(lang, key, params = {}) {
   const L = normLang(lang);
-  const field = params.field ? (FIELDS[L][params.field] || params.field) : undefined;
+  const field = params.field ? FIELDS[L][params.field] || params.field : undefined;
   return fill(MESSAGES[L][key] || MESSAGES.en[key] || key, { ...params, field });
 }
+/** Translate an email template key for the recipient's language. */
 function email(lang, key, params = {}) {
   const L = normLang(lang);
   return fill(EMAILS[L][key] || EMAILS.en[key], params);

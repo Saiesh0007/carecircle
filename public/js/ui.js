@@ -8,20 +8,33 @@ export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k === 'class') node.className = v;
-    else if (k === 'text') node.textContent = v;
-    else if (k === 'vars') for (const [p, val] of Object.entries(v)) node.style.setProperty(p, val);
-    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
-    else node.setAttribute(k, v === true ? '' : v);
+    if (v === undefined || v === null || v === false) {
+      continue;
+    }
+    if (k === 'class') {
+      node.className = v;
+    } else if (k === 'text') {
+      node.textContent = v;
+    } else if (k === 'vars') {
+      for (const [p, val] of Object.entries(v)) {
+        node.style.setProperty(p, val);
+      }
+    } else if (k.startsWith('on') && typeof v === 'function') {
+      node.addEventListener(k.slice(2), v);
+    } else {
+      node.setAttribute(k, v === true ? '' : v);
+    }
   }
   for (const c of children.flat(Infinity)) {
-    if (c === null || c === undefined || c === false) continue;
+    if (c === null || c === undefined || c === false) {
+      continue;
+    }
     node.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   return node;
 }
 
+/** Inline SVG icon from a path string (decorative, hidden from screen readers). */
 export function svg(path, viewBox = '0 0 24 24') {
   const ns = 'http://www.w3.org/2000/svg';
   const s = document.createElementNS(ns, 'svg');
@@ -46,23 +59,50 @@ export const ICON = {
   pill: 'M10.5 20.5a5 5 0 0 1-7-7l9-9a5 5 0 0 1 7 7zM8 9l7 7',
 };
 
-export const motionOK = () => !document.documentElement.classList.contains('no-motion') && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const motionOK = () =>
+  !document.documentElement.classList.contains('no-motion') &&
+  !matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** Show a short status message in the polite live region. */
 export function toast(message, { error = false, ms = 4200 } = {}) {
   const box = $('#toasts');
-  const node = el('div', { class: `toast${error ? ' error' : ''}`, role: error ? 'alert' : null }, message);
+  const node = el(
+    'div',
+    { class: `toast${error ? ' error' : ''}`, role: error ? 'alert' : null },
+    message,
+  );
   box.append(node);
-  setTimeout(() => { node.classList.add('out'); setTimeout(() => node.remove(), 320); }, ms);
+  setTimeout(() => {
+    node.classList.add('out');
+    setTimeout(() => node.remove(), 320);
+  }, ms);
 }
 
 /** Show a spinner on a button while an async task runs; errors become toasts. */
 export async function busy(button, task) {
-  if (button) { button.classList.add('busy'); button.disabled = true; button.setAttribute('aria-busy', 'true'); }
-  try { return await task(); } catch (e) { toast(e.message || t('genericError'), { error: true }); return undefined; } finally {
-    if (button) { button.classList.remove('busy'); button.disabled = false; button.removeAttribute('aria-busy'); }
+  if (button) {
+    button.classList.add('busy');
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+  }
+  try {
+    return await task();
+  } catch (e) {
+    toast(e.message || t('genericError'), { error: true });
+    return undefined;
+  } finally {
+    if (button) {
+      button.classList.remove('busy');
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
   }
 }
 
+/**
+ * Accessible confirmation using the native <dialog>.
+ * @returns {Promise<boolean>} true when the user confirms
+ */
 export function confirmDialog(text, { danger = true, yes } = {}) {
   const dlg = $('#confirmDialog');
   $('#confirmText').textContent = text;
@@ -70,7 +110,12 @@ export function confirmDialog(text, { danger = true, yes } = {}) {
   yesBtn.textContent = yes || t('confirm');
   yesBtn.className = `btn ${danger ? 'danger' : 'primary'}`;
   return new Promise((resolve) => {
-    const done = (v) => { dlg.close(); yesBtn.onclick = null; $('#confirmNo').onclick = null; resolve(v); };
+    const done = (v) => {
+      dlg.close();
+      yesBtn.onclick = null;
+      $('#confirmNo').onclick = null;
+      resolve(v);
+    };
     yesBtn.onclick = () => done(true);
     $('#confirmNo').onclick = () => done(false);
     dlg.addEventListener('cancel', () => resolve(false), { once: true });
@@ -78,36 +123,56 @@ export function confirmDialog(text, { danger = true, yes } = {}) {
   });
 }
 
+/** Form fields as a plain object with trimmed string values. */
 export function formData(form) {
-  return Object.fromEntries([...new FormData(form).entries()].map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]));
+  return Object.fromEntries(
+    [...new FormData(form).entries()].map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]),
+  );
 }
 
 /** Gentle 3D tilt following the pointer (mouse/pen only; disabled with reduced motion). */
 export function enableTilt(root = document) {
   for (const card of $$('.tilt', root)) {
-    if (card.dataset.tiltOn) continue;
+    if (card.dataset.tiltOn) {
+      continue;
+    }
     card.dataset.tiltOn = '1';
     card.addEventListener('pointermove', (e) => {
-      if (e.pointerType === 'touch' || !motionOK()) return;
+      if (e.pointerType === 'touch' || !motionOK()) {
+        return;
+      }
       const r = card.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width - 0.5;
       const y = (e.clientY - r.top) / r.height - 0.5;
       card.style.setProperty('--ty', `${(x * 8).toFixed(2)}deg`);
       card.style.setProperty('--tx', `${(-y * 8).toFixed(2)}deg`);
     });
-    card.addEventListener('pointerleave', () => { card.style.setProperty('--tx', '0deg'); card.style.setProperty('--ty', '0deg'); });
+    card.addEventListener('pointerleave', () => {
+      card.style.setProperty('--tx', '0deg');
+      card.style.setProperty('--ty', '0deg');
+    });
   }
 }
 
+/** Small celebration burst from an element (skipped when motion is reduced). */
 export function confetti(origin) {
-  if (!motionOK()) return;
-  const r = origin?.getBoundingClientRect?.() || { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+  if (!motionOK()) {
+    return;
+  }
+  const r = origin?.getBoundingClientRect?.() || {
+    left: innerWidth / 2,
+    top: innerHeight / 2,
+    width: 0,
+    height: 0,
+  };
   const colors = ['#0e6f62', '#e59a2f', '#b8432f', '#2c7a4b', '#5cc8b4'];
   for (let i = 0; i < 28; i++) {
     const c = el('span', {
       class: 'confetti',
       vars: {
-        '--dx': `${(Math.random() - 0.5) * 320}px`, '--dy': `${-80 - Math.random() * 220}px`, '--rot': `${Math.random() * 720}deg`,
+        '--dx': `${(Math.random() - 0.5) * 320}px`,
+        '--dy': `${-80 - Math.random() * 220}px`,
+        '--rot': `${Math.random() * 720}deg`,
       },
     });
     c.style.left = `${r.left + r.width / 2}px`;
@@ -120,6 +185,9 @@ export function confetti(origin) {
 
 /** Animate the swap of content (View Transitions where supported). */
 export function transition(fn) {
-  if (document.startViewTransition && motionOK()) document.startViewTransition(fn);
-  else fn();
+  if (document.startViewTransition && motionOK()) {
+    document.startViewTransition(fn);
+  } else {
+    fn();
+  }
 }
