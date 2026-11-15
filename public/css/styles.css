@@ -603,3 +603,6 @@ input[aria-invalid="true"] { border-color: var(--bad); }
   .fc-mail { left: 16px; max-width: 210px; }
   .fc-main { width: min(280px, 74%); }
 }
+@media (max-width: 640px) {
+  .fc-mail { left: 36px; transform: translateZ(110px) rotateY(6deg) scale(.88); }
+}
