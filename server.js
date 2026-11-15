@@ -1,23 +1,24 @@
 'use strict';
-const path = require('path');
+/**
+ * Entry point. Locally / on containers it listens and runs the reminder loop every minute.
+ * On Vercel the exported Express app is served as a function; reminders are triggered by
+ * a scheduled GitHub Action calling /internal/reminders/tick (and the in-app button).
+ */
 const express = require('express');
 const { createApp } = require('./src/application');
-const { Store } = require('./src/store');
+const { createStore } = require('./src/store');
 const { createMailer, runReminders } = require('./src/reminders');
 
-// On serverless (Vercel) only /tmp is writable; elsewhere use ./data.
-const defaultFile = process.env.VERCEL ? '/tmp/carecircle/db.json' : path.join(__dirname, 'data', 'db.json');
-const store = new Store(process.env.DATA_FILE || defaultFile);
-const mailer = createMailer();
+const store = createStore();
+const mailer = createMailer({ store });
 const app = express();
 app.use(createApp({ store, mailer }));
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
-  app.listen(port, () => console.log(`CareCircle listening on :${port} (email: ${mailer.mode})`));
-  // In-process reminder loop (every minute). Cloud Scheduler can also hit /internal/reminders/tick.
+  app.listen(port, () => console.log(`CareCircle on :${port} (storage: ${store.kind}, email: ${mailer.mode})`));
   const interval = Number(process.env.REMINDER_INTERVAL_MS || 60000);
-  setInterval(() => runReminders(store, mailer).catch((e) => console.error('reminder loop', e)), interval).unref();
+  setInterval(() => runReminders(store, mailer).catch((e) => console.error('reminder loop:', e.message)), interval).unref();
 }
 
 module.exports = app;

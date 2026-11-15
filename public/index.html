@@ -2,190 +2,418 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CareCircle: shared medication, appointment and adherence management for elderly people, their caretakers and family.">
-  <title>CareCircle</title>
-  <link rel="stylesheet" href="/styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CareCircle: medication &amp; care for elders, together</title>
+  <meta name="description" content="CareCircle helps elderly people, caretakers and family manage medicines, doctor visits and daily routines together, with smart reminders, an AI care assistant and full Hindi support.">
+  <meta name="theme-color" content="#0E6F62" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101615" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Figtree:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script type="module" src="/js/app.js"></script>
 </head>
 <body>
-  <a class="skip" href="#main">Skip to main content</a>
+  <a class="skip" href="#main" data-i18n="skipLink">Skip to main content</a>
+
   <header class="topbar">
-    <h1 class="brand">CareCircle</h1>
-    <div class="tools" role="group" aria-label="Display options">
-      <button type="button" id="textSize" aria-pressed="false">Larger text</button>
-      <button type="button" id="contrast" aria-pressed="false">High contrast</button>
-      <button type="button" id="logout" hidden>Sign out</button>
+    <a class="brand" href="/" aria-label="CareCircle home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="62 17" stroke-linecap="round"/><path d="M16 22.5s-6-3.6-6-7.6a3.4 3.4 0 0 1 6-2.2 3.4 3.4 0 0 1 6 2.2c0 4-6 7.6-6 7.6z" fill="var(--marigold)"/></svg>
+      <span>CareCircle</span>
+    </a>
+    <div class="top-actions">
+      <div class="lang-switch" role="group" aria-label="Language / भाषा">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="hi" aria-pressed="false" lang="hi">हिंदी</button>
+      </div>
+      <details class="a11y-menu">
+        <summary data-i18n-aria="displayOptions" aria-label="Display options">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.5" r="2"/><path d="M4 8.5l8 1.5 8-1.5M12 10v5m0 0l-3.5 6.5M12 15l3.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </summary>
+        <div class="a11y-panel">
+          <button type="button" id="textSize" aria-pressed="false" data-i18n="largerText">Larger text</button>
+          <button type="button" id="contrast" aria-pressed="false" data-i18n="highContrast">High contrast</button>
+          <button type="button" id="motion" aria-pressed="false" data-i18n="reduceMotion">Reduce motion</button>
+        </div>
+      </details>
+      <button type="button" class="icon-btn" id="tourBtn" hidden data-i18n-aria="startTour" aria-label="Start guided tour">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2"/></svg>
+      </button>
+      <button type="button" class="btn ghost small" id="logout" hidden data-i18n="signOut">Sign out</button>
     </div>
   </header>
-  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
   <main id="main" tabindex="-1">
-    <!-- AUTH -->
-    <section id="authView" aria-labelledby="authTitle">
-      <h2 id="authTitle">Care for the people you love, together</h2>
-      <p class="lead">One shared, passcode-protected space where an elderly person, their caretakers and family manage medicines, doctor visits and daily routines — with automatic email reminders.</p>
-      <div class="grid2">
-        <form id="joinForm" class="card" novalidate>
-          <h3>Sign in / join a care circle</h3>
-          <label for="jCode">Care code</label>
-          <input id="jCode" name="profileId" required autocomplete="off" placeholder="CC-XXXXXXXX">
-          <label for="jPass">Shared passcode</label>
-          <input id="jPass" name="passcode" type="password" required autocomplete="current-password">
-          <label for="jName">Your name</label>
-          <input id="jName" name="name" required autocomplete="name">
-          <label for="jEmail">Your email (for reminders)</label>
-          <input id="jEmail" name="email" type="email" autocomplete="email">
-          <label for="jRole">I am the</label>
-          <select id="jRole" name="role">
-            <option value="family">Family member</option>
-            <option value="caretaker">Caretaker</option>
-            <option value="elder">Person receiving care</option>
-          </select>
-          <button class="primary" type="submit">Open care circle</button>
-        </form>
-        <form id="createForm" class="card" novalidate>
-          <h3>Start a new care circle</h3>
-          <label for="cName">Name of the person receiving care</label>
-          <input id="cName" name="name" required>
-          <label for="cDob">Date of birth</label>
-          <input id="cDob" name="dob" type="date">
-          <label for="cPass">Choose a shared passcode (min 6 characters)</label>
-          <input id="cPass" name="passcode" type="password" minlength="6" required autocomplete="new-password">
-          <label for="cYour">Your name</label>
-          <input id="cYour" name="yourName" required autocomplete="name">
-          <label for="cEmail">Your email</label>
-          <input id="cEmail" name="yourEmail" type="email" autocomplete="email">
-          <label for="cRole">I am the</label>
-          <select id="cRole" name="yourRole">
-            <option value="caretaker">Caretaker</option>
-            <option value="family">Family member</option>
-            <option value="elder">Person receiving care</option>
-          </select>
-          <button class="primary" type="submit">Create care circle</button>
-        </form>
+    <!-- ============ LANDING ============ -->
+    <section id="landing" class="landing" aria-labelledby="heroTitle">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" data-i18n="heroEyebrow">For elders, caretakers and family</p>
+          <h1 id="heroTitle" data-i18n="heroTitle">Care that keeps everyone in the loop.</h1>
+          <p class="hero-lead" data-i18n="heroLead">One shared, passcode-protected space to manage medicines, doctor visits and daily routines, with reminders that reach the whole family before anything is missed.</p>
+          <div class="hero-cta">
+            <button type="button" class="btn primary lg" id="demoBtn">
+              <span data-i18n="tryDemo">Try the live demo</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" class="btn lg" data-open-auth="signin" data-i18n="signInJoin">Sign in or join</button>
+          </div>
+          <p class="hero-note" data-i18n="heroNote">No signup needed for the demo. It is your own private copy for 24 hours.</p>
+          <ul class="trust">
+            <li data-i18n="trust1">Hindi &amp; English</li>
+            <li data-i18n="trust2">AI care assistant</li>
+            <li data-i18n="trust3">Email reminders</li>
+          </ul>
+        </div>
+
+        <div class="scene" id="scene" aria-hidden="true">
+          <div class="scene-inner" id="sceneInner">
+            <div class="orbit">
+              <div class="orbit-ring"></div>
+              <div class="orbit-spin">
+                <span class="sat s1"><span class="sat-face">P</span></span>
+                <span class="sat s2"><span class="sat-face">R</span></span>
+                <span class="sat s3"><span class="sat-face">D</span></span>
+                <span class="sat s4"><span class="sat-face pill-face"></span></span>
+              </div>
+            </div>
+            <div class="float-card fc-main">
+              <div class="fc-head"><span class="avatar">K</span><div><strong data-i18n="sceneName">Kamala Devi, 78</strong><small data-i18n="sceneSub">Today · 3 of 5 doses</small></div></div>
+              <div class="fc-row done"><span>08:00</span><b>Metformin</b><i data-i18n="status_taken">Taken</i></div>
+              <div class="fc-row done"><span>09:00</span><b>Amlodipine</b><i data-i18n="status_taken">Taken</i></div>
+              <div class="fc-row due"><span>13:00</span><b>Vitamin D3</b><i data-i18n="status_due">Due now</i></div>
+            </div>
+            <div class="float-card fc-ring">
+              <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="32" class="ring-bg"/><circle cx="40" cy="40" r="32" class="ring-fg"/></svg>
+              <strong>92%</strong><small data-i18n="sceneAdherence">this week</small>
+            </div>
+            <div class="float-card fc-mail">
+              <span class="mail-dot"></span>
+              <div><strong data-i18n="sceneMailTitle">Missed dose alert</strong><small data-i18n="sceneMailSub">Sent to Priya and Ramesh</small></div>
+            </div>
+            <div class="capsule"><span></span><span></span></div>
+          </div>
+        </div>
       </div>
+
+      <section class="features" aria-labelledby="featTitle">
+        <h2 id="featTitle" data-i18n="featTitle">Everything a care circle needs</h2>
+        <div class="feature-grid">
+          <article class="feature tilt"><div class="f-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l2.5 2.5M9 2.5h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><h3 data-i18n="f1t">Never miss a dose</h3><p data-i18n="f1d">Daily timeline with one-tap Taken / Skip. Missed doses alert the family by email automatically.</p></article>
+          <article class="feature tilt"><div class="f-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/></svg></div><h3 data-i18n="f2t">AI care assistant</h3><p data-i18n="f2d">Ask in Hindi or English, by voice or text. Paste a prescription and it fills the schedule for you.</p></article>
+          <article class="feature tilt"><div class="f-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 8-8M15 7h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3 data-i18n="f3t">Predicts missed doses</h3><p data-i18n="f3d">A risk model learns from past weeks and warns you which dose is likely to be missed today.</p></article>
+          <article class="feature tilt"><div class="f-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.7.7 2.8 2.5 3 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><h3 data-i18n="f4t">Shared and secure</h3><p data-i18n="f4d">Family joins with a care code and passcode, or signs in with Google / GitHub. The elder stays at the centre.</p></article>
+        </div>
+      </section>
+
+      <section class="how" aria-labelledby="howTitle">
+        <h2 id="howTitle" data-i18n="howTitle">How it works</h2>
+        <ol class="steps">
+          <li><span class="step-n">1</span><div><h3 data-i18n="h1t">Create a care circle</h3><p data-i18n="h1d">Add the elder's health profile and choose a shared passcode.</p></div></li>
+          <li><span class="step-n">2</span><div><h3 data-i18n="h2t">Invite the family</h3><p data-i18n="h2d">Share the care code. Everyone picks a role: elder, caretaker or family.</p></div></li>
+          <li><span class="step-n">3</span><div><h3 data-i18n="h3t">Stay in sync</h3><p data-i18n="h3d">Track doses and visits together; reminders and AI insights do the rest.</p></div></li>
+        </ol>
+      </section>
+      <footer class="foot"><p data-i18n="footNote">CareCircle supports care coordination and is not a substitute for medical advice. In an emergency call 112.</p></footer>
     </section>
 
-    <!-- APP -->
-    <section id="appView" hidden aria-labelledby="who">
-      <div class="hello">
-        <h2 id="who"></h2>
-        <p id="codeLine" class="muted"></p>
-      </div>
-      <nav aria-label="Sections">
-        <div role="tablist" class="tabs" id="tabs">
-          <button role="tab" id="tab-today" aria-controls="panel-today" aria-selected="true">Today</button>
-          <button role="tab" id="tab-meds" aria-controls="panel-meds" aria-selected="false" tabindex="-1">Medications</button>
-          <button role="tab" id="tab-appts" aria-controls="panel-appts" aria-selected="false" tabindex="-1">Appointments</button>
-          <button role="tab" id="tab-health" aria-controls="panel-health" aria-selected="false" tabindex="-1">Progress</button>
-          <button role="tab" id="tab-circle" aria-controls="panel-circle" aria-selected="false" tabindex="-1">Care circle</button>
-        </div>
+    <!-- ============ APP ============ -->
+    <section id="app" class="app" hidden>
+      <nav class="sidenav" aria-label="Sections" data-i18n-aria="sections">
+        <div class="circle-chip" id="circleChip"></div>
+        <ul role="list">
+          <li><a href="#today" data-view="today" data-tour="nav-today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM4 10h16M9 3v4m6-4v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="navToday">Today</span></a></li>
+          <li><a href="#meds" data-view="meds" data-tour="nav-meds"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8.2l3.9 5.6" stroke="currentColor" stroke-width="2"/></svg><span data-i18n="navMeds">Medicines</span></a></li>
+          <li><a href="#appts" data-view="appts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v5a5 5 0 0 0 10 0V4M12 14v2a4 4 0 0 0 8 0v-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><span data-i18n="navAppts">Visits</span></a></li>
+          <li><a href="#assistant" data-view="assistant" data-tour="nav-assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/></svg><span data-i18n="navAssistant">Assistant</span></a></li>
+          <li><a href="#progress" data-view="progress" data-tour="nav-progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="navProgress">Progress</span></a></li>
+          <li><a href="#circle" data-view="circle" data-tour="nav-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.7.7 2.8 2.5 3 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="navCircle">Circle</span></a></li>
+        </ul>
       </nav>
 
-      <div role="tabpanel" id="panel-today" aria-labelledby="tab-today">
-        <div class="row">
-          <h3>Today's medicines</h3>
-          <button type="button" id="readAloud">Read today aloud</button>
+      <div class="views">
+        <div id="demoBanner" class="demo-banner" hidden>
+          <span data-i18n="demoBanner">You are exploring a private demo. Data resets in 24 hours.</span>
+          <button type="button" class="btn small" id="demoTour" data-i18n="takeTour">Take the tour</button>
         </div>
-        <div id="insightList" aria-live="polite"></div>
-        <ul id="todayList" class="doses"></ul>
-        <h3>Next appointment</h3>
-        <div id="nextAppt"></div>
-      </div>
 
-      <div role="tabpanel" id="panel-meds" aria-labelledby="tab-meds" hidden>
-        <form id="medForm" class="card" novalidate>
-          <h3 id="medFormTitle">Add a medication</h3>
-          <input type="hidden" name="id">
-          <div class="grid2">
-            <div><label for="mName">Medicine name</label><input id="mName" name="name" required></div>
-            <div><label for="mDose">Dosage</label><input id="mDose" name="dosage" placeholder="e.g. 1 tablet, 500 mg"></div>
-            <div><label for="mTimes">Times (comma separated, 24h)</label><input id="mTimes" name="times" required placeholder="08:00, 20:00"></div>
-            <div><label for="mStock">Pills in stock</label><input id="mStock" name="stock" type="number" min="0" inputmode="numeric"></div>
-            <div><label for="mStart">Start date</label><input id="mStart" name="startDate" type="date"></div>
-            <div><label for="mEnd">End date (optional)</label><input id="mEnd" name="endDate" type="date"></div>
-          </div>
-          <label for="mInstr">Instructions</label>
-          <input id="mInstr" name="instructions" placeholder="e.g. after food">
-          <div class="row">
-            <button class="primary" type="submit">Save medication</button>
-            <button type="button" id="medCancel" hidden>Cancel edit</button>
-          </div>
-        </form>
-        <ul id="medList" class="list"></ul>
-      </div>
+        <!-- TODAY -->
+        <section class="view" id="view-today" data-view-panel="today" aria-labelledby="todayTitle">
+          <header class="view-head">
+            <div>
+              <p class="eyebrow" id="todayDate"></p>
+              <h2 id="todayTitle" class="greet"></h2>
+            </div>
+            <button type="button" class="btn" id="readAloud">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm12.5-1a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="readAloud">Read today aloud</span>
+            </button>
+          </header>
 
-      <div role="tabpanel" id="panel-appts" aria-labelledby="tab-appts" hidden>
-        <form id="apptForm" class="card" novalidate>
-          <h3 id="apptFormTitle">Add an appointment</h3>
-          <input type="hidden" name="id">
-          <div class="grid2">
-            <div><label for="aDoc">Doctor</label><input id="aDoc" name="doctor" required></div>
-            <div><label for="aSpec">Specialty</label><input id="aSpec" name="specialty"></div>
-            <div><label for="aDate">Date</label><input id="aDate" name="date" type="date" required></div>
-            <div><label for="aTime">Time</label><input id="aTime" name="time" type="time" required></div>
+          <div class="stat-grid" data-tour="stats">
+            <article class="stat-card tilt">
+              <div class="ring" id="adhRing"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="32" class="ring-bg"/><circle cx="40" cy="40" r="32" class="ring-fg"/></svg><strong id="adhPct">–</strong></div>
+              <div><h3 data-i18n="statAdherence">Adherence</h3><p class="muted" data-i18n="last7">Last 7 days</p></div>
+            </article>
+            <article class="stat-card tilt"><div class="stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l2.5 2.5M9 2.5h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div><h3 data-i18n="statNextDose">Next dose</h3><p class="stat-big" id="nextDose">–</p><p class="muted" id="nextDoseSub"></p></div></article>
+            <article class="stat-card tilt"><div class="stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div><h3 data-i18n="statStreak">Perfect-day streak</h3><p class="stat-big" id="streak">–</p></div></article>
+            <article class="stat-card tilt"><div class="stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3H5v6a5 5 0 0 0 10 0V3h-1M10 14v1a5 5 0 0 0 10 0v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg></div><div><h3 data-i18n="statNextVisit">Next visit</h3><p class="stat-big small-text" id="nextVisit">–</p><p class="muted" id="nextVisitSub"></p></div></article>
           </div>
-          <label for="aLoc">Location</label><input id="aLoc" name="location">
-          <label for="aNotes">Notes / questions for the doctor</label><textarea id="aNotes" name="notes" rows="2"></textarea>
-          <div class="row">
-            <button class="primary" type="submit">Save appointment</button>
-            <button type="button" id="apptCancel" hidden>Cancel edit</button>
+
+          <div class="today-grid">
+            <section class="card" aria-labelledby="timelineTitle" data-tour="timeline">
+              <div class="card-head"><h3 id="timelineTitle" data-i18n="todayMeds">Today's medicines</h3><span class="muted" id="doseCount"></span></div>
+              <ol class="timeline" id="timeline"></ol>
+            </section>
+            <div class="stack">
+              <section class="card risk-card" aria-labelledby="riskTitle" data-tour="risk">
+                <div class="card-head"><h3 id="riskTitle" data-i18n="riskTitle">Missed-dose risk today</h3><span class="tag" data-i18n="mlTag">ML</span></div>
+                <p class="muted small" data-i18n="riskHelp">Learned from the last 4 weeks of doses. Give extra attention to high-risk doses.</p>
+                <ul class="risk-list" id="riskList"></ul>
+              </section>
+              <section class="card" aria-labelledby="insTitle">
+                <div class="card-head"><h3 id="insTitle" data-i18n="insightsTitle">Smart insights</h3></div>
+                <ul class="insights" id="insights"></ul>
+              </section>
+            </div>
           </div>
-        </form>
-        <ul id="apptList" class="list"></ul>
-      </div>
+        </section>
 
-      <div role="tabpanel" id="panel-health" aria-labelledby="tab-health" hidden>
-        <h3>Adherence — last 7 days</h3>
-        <div id="adherenceSummary" class="stats"></div>
-        <div id="adherenceChart" class="bars" role="img"></div>
-        <h3>By medicine</h3>
-        <ul id="perMed" class="list"></ul>
-        <h3>Recent activity</h3>
-        <ol id="activity" class="activity"></ol>
-      </div>
-
-      <div role="tabpanel" id="panel-circle" aria-labelledby="tab-circle" hidden>
-        <div class="grid2">
-          <form id="profileForm" class="card" novalidate>
-            <h3>Health profile &amp; emergency card</h3>
-            <label for="pName">Name</label><input id="pName" name="name" required>
-            <label for="pDob">Date of birth</label><input id="pDob" name="dob" type="date">
-            <label for="pCond">Conditions</label><textarea id="pCond" name="conditions" rows="2"></textarea>
-            <label for="pAll">Allergies</label><textarea id="pAll" name="allergies" rows="2"></textarea>
-            <label for="pEm">Emergency contact</label><input id="pEm" name="emergencyContact">
-            <label for="pDoc">Primary doctor</label><input id="pDoc" name="doctorContact">
+        <!-- MEDICINES -->
+        <section class="view" id="view-meds" data-view-panel="meds" hidden aria-labelledby="medsTitle">
+          <header class="view-head">
+            <h2 id="medsTitle" data-i18n="navMeds">Medicines</h2>
             <div class="row">
-              <button class="primary" type="submit">Save profile</button>
-              <button type="button" id="printCard">Print emergency card</button>
+              <button type="button" class="btn" id="interactionsBtn" data-ai><span data-i18n="checkInteractions">Check interactions</span><span class="tag" data-i18n="aiTag">AI</span></button>
+              <button type="button" class="btn primary" id="addMedBtn" data-i18n="addMedicine">Add medicine</button>
             </div>
-          </form>
-          <div>
-            <div class="card">
-              <h3>Members</h3>
-              <ul id="memberList" class="list"></ul>
-              <p class="muted">Invite others by sharing the care code and passcode. They choose their role when joining.</p>
-            </div>
-            <form id="passForm" class="card" novalidate>
-              <h3>Change shared passcode</h3>
-              <label for="pwCur">Current passcode</label><input id="pwCur" name="current" type="password" required autocomplete="current-password">
-              <label for="pwNew">New passcode</label><input id="pwNew" name="next" type="password" minlength="6" required autocomplete="new-password">
-              <button type="submit">Change passcode</button>
-              <p class="muted">Everyone else will need the new passcode to sign in again.</p>
+          </header>
+          <section class="card ai-card" data-ai aria-labelledby="rxTitle" data-tour="rx">
+            <div class="card-head"><h3 id="rxTitle" data-i18n="rxTitle">Add from a prescription</h3><span class="tag" data-i18n="aiTag">AI</span></div>
+            <p class="muted small" data-i18n="rxHelp">Paste or speak the prescription, e.g. "Metformin 500mg 1-0-1 after food". The AI fills in the schedule and you review it before saving.</p>
+            <form id="rxForm" class="rx-form">
+              <label for="rxText" class="sr-only" data-i18n="rxTitle">Add from a prescription</label>
+              <textarea id="rxText" rows="3" maxlength="3000" data-i18n-placeholder="rxPlaceholder" placeholder="Tab Metformin 500mg 1-0-1 after food x 30 days"></textarea>
+              <div class="row">
+                <button type="button" class="btn mic" data-mic-for="rxText" data-i18n-aria="speak" aria-label="Speak"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+                <button type="submit" class="btn primary" data-i18n="readPrescription">Read prescription</button>
+              </div>
             </form>
-            <div class="card">
-              <h3>Email reminders</h3>
-              <p id="emailMode" class="muted"></p>
-              <button type="button" id="runReminders">Send due reminders now</button>
-              <ul id="outbox" class="list small"></ul>
+            <div id="rxResults" class="rx-results" aria-live="polite"></div>
+          </section>
+          <div id="interactionResult" aria-live="polite"></div>
+          <ul class="med-grid" id="medList" role="list"></ul>
+        </section>
+
+        <!-- APPOINTMENTS -->
+        <section class="view" id="view-appts" data-view-panel="appts" hidden aria-labelledby="apptsTitle">
+          <header class="view-head">
+            <h2 id="apptsTitle" data-i18n="apptsTitle">Doctor visits</h2>
+            <button type="button" class="btn primary" id="addApptBtn" data-i18n="addAppointment">Add visit</button>
+          </header>
+          <h3 class="sub-head" data-i18n="upcoming">Upcoming</h3>
+          <ul class="appt-list" id="apptUpcoming" role="list"></ul>
+          <h3 class="sub-head" data-i18n="past">Past</h3>
+          <ul class="appt-list past" id="apptPast" role="list"></ul>
+        </section>
+
+        <!-- ASSISTANT -->
+        <section class="view" id="view-assistant" data-view-panel="assistant" hidden aria-labelledby="asstTitle">
+          <header class="view-head">
+            <div><h2 id="asstTitle" data-i18n="asstTitle">Saathi, your care assistant</h2><p class="muted" data-i18n="asstSub">Ask anything about today's care, in Hindi or English. It can also record doses and add visits once you confirm.</p></div>
+          </header>
+          <div class="chat card">
+            <ol class="chat-log" id="chatLog" aria-live="polite" aria-relevant="additions"></ol>
+            <div class="chips" id="chatChips"></div>
+            <form id="chatForm" class="chat-form">
+              <label for="chatInput" class="sr-only" data-i18n="askPlaceholder">Ask Saathi…</label>
+              <button type="button" class="btn mic" data-mic-for="chatInput" data-i18n-aria="speak" aria-label="Speak"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+              <input id="chatInput" autocomplete="off" maxlength="1500" data-i18n-placeholder="askPlaceholder" placeholder="Ask Saathi…">
+              <button type="submit" class="btn primary" data-i18n="send">Send</button>
+            </form>
+            <p class="muted tiny" data-i18n="aiDisclaimer">Saathi is not a doctor. For changes to medicines, consult your doctor. In an emergency call 112.</p>
+          </div>
+        </section>
+
+        <!-- PROGRESS -->
+        <section class="view" id="view-progress" data-view-panel="progress" hidden aria-labelledby="progTitle">
+          <header class="view-head">
+            <h2 id="progTitle" data-i18n="navProgress">Progress</h2>
+            <div class="seg" role="group" data-i18n-aria="period" aria-label="Period">
+              <button type="button" data-days="7" aria-pressed="true" data-i18n="d7">7 days</button>
+              <button type="button" data-days="14" aria-pressed="false" data-i18n="d14">14 days</button>
+              <button type="button" data-days="30" aria-pressed="false" data-i18n="d30">30 days</button>
+            </div>
+          </header>
+          <div class="stat-grid three" id="progStats"></div>
+          <section class="card"><div class="card-head"><h3 data-i18n="dailyAdherence">Daily adherence</h3></div><div class="bars" id="bars" role="img"></div></section>
+          <section class="card"><div class="card-head"><h3 data-i18n="heatTitle">Dose map</h3><span class="muted small" data-i18n="heatHelp">Each square is one dose</span></div><div class="heat-wrap"><div class="heat" id="heat"></div></div>
+            <ul class="legend"><li><i class="lg-taken"></i><span data-i18n="status_taken">Taken</span></li><li><i class="lg-missed"></i><span data-i18n="status_missed">Missed</span></li><li><i class="lg-skipped"></i><span data-i18n="status_skipped">Skipped</span></li><li><i class="lg-pending"></i><span data-i18n="status_pending">Upcoming</span></li></ul>
+          </section>
+          <div class="two-col">
+            <section class="card ai-card" data-ai data-tour="summary">
+              <div class="card-head"><h3 data-i18n="weeklySummary">Weekly summary for family</h3><span class="tag" data-i18n="aiTag">AI</span></div>
+              <div id="summaryOut" aria-live="polite"><p class="muted" data-i18n="summaryHelp">Generate a short, friendly update on how the week went, with suggestions for the family.</p></div>
+              <div class="row"><button type="button" class="btn primary" id="summaryBtn" data-i18n="generate">Generate</button><button type="button" class="btn" id="summaryShare" hidden data-i18n="emailFamily">Email to family</button></div>
+            </section>
+            <section class="card"><div class="card-head"><h3 data-i18n="byMedicine">By medicine</h3></div><ul class="per-med" id="perMed"></ul></section>
+          </div>
+          <section class="card"><div class="card-head"><h3 data-i18n="activity">Recent activity</h3></div><ol class="activity" id="activity"></ol></section>
+        </section>
+
+        <!-- CIRCLE -->
+        <section class="view" id="view-circle" data-view-panel="circle" hidden aria-labelledby="circleTitle">
+          <header class="view-head"><h2 id="circleTitle" data-i18n="careCircle">Care circle</h2></header>
+          <div class="two-col">
+            <form id="profileForm" class="card form" novalidate>
+              <div class="card-head"><h3 data-i18n="healthProfile">Health profile</h3></div>
+              <div class="field"><label for="pName" data-i18n="fName">Name</label><input id="pName" name="name" required maxlength="80"></div>
+              <div class="field"><label for="pDob" data-i18n="fDob">Date of birth</label><input id="pDob" name="dob" type="date"></div>
+              <div class="field"><label for="pCond" data-i18n="fConditions">Conditions</label><textarea id="pCond" name="conditions" rows="2" maxlength="500"></textarea></div>
+              <div class="field"><label for="pAll" data-i18n="fAllergies">Allergies</label><textarea id="pAll" name="allergies" rows="2" maxlength="500"></textarea></div>
+              <div class="field"><label for="pEm" data-i18n="fEmergency">Emergency contact</label><input id="pEm" name="emergencyContact" maxlength="200"></div>
+              <div class="field"><label for="pDoc" data-i18n="fDoctor">Primary doctor</label><input id="pDoc" name="doctorContact" maxlength="200"></div>
+              <div class="row"><button type="submit" class="btn primary" data-i18n="save">Save</button><button type="button" class="btn" id="printCard" data-i18n="printCard">Print emergency card</button></div>
+            </form>
+            <div class="stack">
+              <section class="card" data-tour="members">
+                <div class="card-head"><h3 data-i18n="members">Members</h3></div>
+                <div class="share-box"><div><span class="muted small" data-i18n="careCode">Care code</span><strong id="shareCode"></strong></div><button type="button" class="btn small" id="copyCode" data-i18n="copy">Copy</button></div>
+                <ul class="members" id="members" role="list"></ul>
+                <details class="invite">
+                  <summary data-i18n="inviteByEmail">Invite by email</summary>
+                  <form id="inviteForm" class="form" novalidate>
+                    <p class="muted small" data-i18n="inviteHelp">Invited people can sign in with Google or GitHub using this email, without the passcode.</p>
+                    <div class="field"><label for="iName" data-i18n="fName">Name</label><input id="iName" name="name" required maxlength="80"></div>
+                    <div class="field"><label for="iEmail" data-i18n="fEmail">Email</label><input id="iEmail" name="email" type="email" required></div>
+                    <div class="field"><label for="iRole" data-i18n="fRole">Role</label><select id="iRole" name="role"><option value="family" data-i18n="role_family">Family</option><option value="caretaker" data-i18n="role_caretaker">Caretaker</option><option value="elder" data-i18n="role_elder">Elder</option></select></div>
+                    <button type="submit" class="btn primary" data-i18n="invite">Invite</button>
+                  </form>
+                </details>
+              </section>
+              <section class="card">
+                <div class="card-head"><h3 data-i18n="emailReminders">Email reminders</h3></div>
+                <p class="muted small" id="emailMode"></p>
+                <button type="button" class="btn" id="runReminders" data-i18n="sendDueNow">Send due reminders now</button>
+                <ul class="outbox" id="outbox"></ul>
+              </section>
+              <form id="passForm" class="card form" novalidate>
+                <div class="card-head"><h3 data-i18n="changePasscode">Change shared passcode</h3></div>
+                <div class="field"><label for="pwCur" data-i18n="currentPasscode">Current passcode</label><input id="pwCur" name="current" type="password" required autocomplete="current-password"></div>
+                <div class="field"><label for="pwNew" data-i18n="newPasscode">New passcode (min 6)</label><input id="pwNew" name="next" type="password" minlength="6" required autocomplete="new-password"></div>
+                <button type="submit" class="btn" data-i18n="changePasscode">Change shared passcode</button>
+              </form>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </section>
   </main>
 
+  <!-- ============ DIALOGS ============ -->
+  <dialog id="authDialog" class="dialog" aria-labelledby="authTitle">
+    <form method="dialog" class="dialog-close"><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></form>
+    <h2 id="authTitle" data-i18n="welcome">Welcome to CareCircle</h2>
+    <div class="oauth" id="oauthBox" hidden>
+      <a class="btn oauth-btn" id="oauthGoogle" href="/auth/google" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.6 3.8-5.4 3.8-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.3 14.6 2.3 12 2.3 6.6 2.3 2.3 6.6 2.3 12s4.3 9.7 9.7 9.7c5.6 0 9.3-3.9 9.3-9.5 0-.6-.1-1.1-.2-1.6H12z"/></svg><span data-i18n="withGoogle">Continue with Google</span></a>
+      <a class="btn oauth-btn" id="oauthGithub" href="/auth/github" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg><span data-i18n="withGithub">Continue with GitHub</span></a>
+      <div class="or"><span data-i18n="or">or</span></div>
+    </div>
+    <div class="oauth-identity" id="oauthIdentity" hidden></div>
+    <div class="seg full" role="tablist" aria-label="Sign in or create">
+      <button type="button" role="tab" id="tabSignin" aria-selected="true" aria-controls="joinForm" data-i18n="signInJoinShort">Sign in / join</button>
+      <button type="button" role="tab" id="tabCreate" aria-selected="false" aria-controls="createForm" tabindex="-1" data-i18n="createCircle">Create circle</button>
+    </div>
+    <form id="joinForm" class="form" role="tabpanel" aria-labelledby="tabSignin" novalidate>
+      <div class="field"><label for="jCode" data-i18n="careCode">Care code</label><input id="jCode" name="profileId" required autocomplete="off" autocapitalize="characters" placeholder="CC-XXXXXXXX"></div>
+      <div class="field"><label for="jPass" data-i18n="sharedPasscode">Shared passcode</label><input id="jPass" name="passcode" type="password" required autocomplete="current-password"></div>
+      <div class="grid-2">
+        <div class="field"><label for="jName" data-i18n="yourName">Your name</label><input id="jName" name="name" required autocomplete="name" maxlength="80"></div>
+        <div class="field"><label for="jRole" data-i18n="iAm">I am</label><select id="jRole" name="role"><option value="family" data-i18n="role_family">Family</option><option value="caretaker" data-i18n="role_caretaker">Caretaker</option><option value="elder" data-i18n="role_elder">Elder</option></select></div>
+      </div>
+      <div class="field"><label for="jEmail" data-i18n="yourEmailOpt">Your email (for reminders)</label><input id="jEmail" name="email" type="email" autocomplete="email"></div>
+      <button type="submit" class="btn primary block" data-i18n="openCircle">Open care circle</button>
+    </form>
+    <form id="createForm" class="form" role="tabpanel" aria-labelledby="tabCreate" hidden novalidate>
+      <div class="grid-2">
+        <div class="field"><label for="cName" data-i18n="elderName">Name of the elder</label><input id="cName" name="name" required maxlength="80"></div>
+        <div class="field"><label for="cDob" data-i18n="fDob">Date of birth</label><input id="cDob" name="dob" type="date"></div>
+      </div>
+      <div class="field"><label for="cPass" data-i18n="choosePasscode">Choose a shared passcode (min 6)</label><input id="cPass" name="passcode" type="password" minlength="6" required autocomplete="new-password"></div>
+      <div class="grid-2">
+        <div class="field"><label for="cYour" data-i18n="yourName">Your name</label><input id="cYour" name="yourName" required autocomplete="name" maxlength="80"></div>
+        <div class="field"><label for="cRole" data-i18n="iAm">I am</label><select id="cRole" name="yourRole"><option value="caretaker" data-i18n="role_caretaker">Caretaker</option><option value="family" data-i18n="role_family">Family</option><option value="elder" data-i18n="role_elder">Elder</option></select></div>
+      </div>
+      <div class="field"><label for="cEmail" data-i18n="yourEmailOpt">Your email (for reminders)</label><input id="cEmail" name="yourEmail" type="email" autocomplete="email"></div>
+      <button type="submit" class="btn primary block" data-i18n="createCircle">Create circle</button>
+    </form>
+  </dialog>
+
+  <dialog id="medDialog" class="dialog" aria-labelledby="medDialogTitle">
+    <form method="dialog" class="dialog-close"><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></form>
+    <h2 id="medDialogTitle"></h2>
+    <form id="medForm" class="form" novalidate>
+      <input type="hidden" name="id">
+      <div class="grid-2">
+        <div class="field"><label for="mName" data-i18n="fMedName">Medicine name</label><input id="mName" name="name" required maxlength="100"></div>
+        <div class="field"><label for="mDose" data-i18n="fDosage">Dosage</label><input id="mDose" name="dosage" maxlength="100" data-i18n-placeholder="dosagePh" placeholder="e.g. 500 mg, 1 tablet"></div>
+      </div>
+      <fieldset class="field">
+        <legend data-i18n="fTimes">Times of day</legend>
+        <div class="times" id="timesBox"></div>
+        <button type="button" class="btn small" id="addTime" data-i18n="addTime">+ Add time</button>
+      </fieldset>
+      <div class="grid-3">
+        <div class="field"><label for="mStock" data-i18n="fStock">Pills in stock</label><input id="mStock" name="stock" type="number" min="0" max="100000" inputmode="numeric"></div>
+        <div class="field"><label for="mStart" data-i18n="fStart">Start date</label><input id="mStart" name="startDate" type="date"></div>
+        <div class="field"><label for="mEnd" data-i18n="fEnd">End date</label><input id="mEnd" name="endDate" type="date"></div>
+      </div>
+      <div class="field"><label for="mInstr" data-i18n="fInstructions">Instructions</label><input id="mInstr" name="instructions" maxlength="300" data-i18n-placeholder="instrPh" placeholder="e.g. after food"></div>
+      <button type="submit" class="btn primary block" data-i18n="save">Save</button>
+    </form>
+  </dialog>
+
+  <dialog id="apptDialog" class="dialog" aria-labelledby="apptDialogTitle">
+    <form method="dialog" class="dialog-close"><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></form>
+    <h2 id="apptDialogTitle"></h2>
+    <form id="apptForm" class="form" novalidate>
+      <input type="hidden" name="id">
+      <div class="grid-2">
+        <div class="field"><label for="aDoc" data-i18n="fDoctorName">Doctor</label><input id="aDoc" name="doctor" required maxlength="100"></div>
+        <div class="field"><label for="aSpec" data-i18n="fSpecialty">Specialty</label><input id="aSpec" name="specialty" maxlength="100"></div>
+        <div class="field"><label for="aDate" data-i18n="fDate">Date</label><input id="aDate" name="date" type="date" required></div>
+        <div class="field"><label for="aTime" data-i18n="fTime">Time</label><input id="aTime" name="time" type="time" required></div>
+      </div>
+      <div class="field"><label for="aLoc" data-i18n="fLocation">Location</label><input id="aLoc" name="location" maxlength="200"></div>
+      <div class="field"><label for="aNotes" data-i18n="fNotes">Notes / questions for the doctor</label><textarea id="aNotes" name="notes" rows="3" maxlength="500"></textarea></div>
+      <button type="submit" class="btn primary block" data-i18n="save">Save</button>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="dialog small" aria-labelledby="confirmText">
+    <p id="confirmText"></p>
+    <div class="row end"><button type="button" class="btn" id="confirmNo" data-i18n="cancel">Cancel</button><button type="button" class="btn danger" id="confirmYes" data-i18n="confirm">Confirm</button></div>
+  </dialog>
+
+  <div id="tour" class="tour" hidden>
+    <div class="tour-spot" id="tourSpot"></div>
+    <div class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourBody">
+      <p class="tour-step" id="tourStep"></p>
+      <h2 id="tourTitle"></h2>
+      <p id="tourBody"></p>
+      <div class="row">
+        <button type="button" class="btn ghost small" id="tourSkip" data-i18n="skipTour">Skip</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn small" id="tourBack" data-i18n="back">Back</button>
+        <button type="button" class="btn primary small" id="tourNext" data-i18n="next">Next</button>
+      </div>
+    </div>
+  </div>
+
   <section id="emergencyCard" class="print-only" aria-hidden="true"></section>
-  <script src="/app.js"></script>
 </body>
 </html>

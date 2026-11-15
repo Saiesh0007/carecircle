@@ -1,166 +1,202 @@
 'use strict';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createApp } = require('../src/application');
-const { Store } = require('../src/store');
-const { createMailer, collectReminders, runReminders } = require('../src/reminders');
-const { scheduleFor, adherence, insights } = require('../src/care');
-const { hashPasscode, verifyPasscode, sign, verifyToken } = require('../src/auth');
+const { startServer } = require('./helpers');
 const { localParts, addDays } = require('../src/time');
 
-let server; let base; let store; let mailer;
-before(async () => {
-  store = new Store(null); mailer = createMailer();
-  server = createApp({ store, mailer }).listen(0);
-  await new Promise((r) => server.once('listening', r));
-  base = `http://127.0.0.1:${server.address().port}`;
-});
-after(() => server.close());
+let h;
+before(async () => { h = await startServer(); });
+after(() => h.close());
 
-async function call(path, { method = 'GET', body, token } = {}) {
-  const res = await fetch(base + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  return { status: res.status, body: text ? JSON.parse(text) : null, headers: res.headers };
-}
-async function newCircle() {
-  const r = await call('/api/profiles', { method: 'POST', body: { name: 'Asha', passcode: 'secret123', yourName: 'Ravi', yourEmail: 'ravi@example.com', yourRole: 'caretaker' } });
-  assert.equal(r.status, 201);
-  return r.body;
-}
-
-test('passcode hashing and token signing', () => {
-  const h = hashPasscode('abcdef');
-  assert.ok(verifyPasscode('abcdef', h));
-  assert.ok(!verifyPasscode('abcdeg', h));
-  const t = sign({ pid: 'x' });
-  assert.equal(verifyToken(t).pid, 'x');
-  assert.equal(verifyToken(`${t}x`), null);
-  assert.equal(verifyToken('garbage'), null);
-});
-
-test('security headers and health', async () => {
-  const r = await call('/healthz');
+test('security headers, health and static app', async () => {
+  const r = await h.call('/healthz');
   assert.equal(r.status, 200);
-  assert.match(r.headers.get('content-security-policy'), /default-src 'self'/);
+  assert.equal(r.body.ok, true);
+  const csp = r.headers.get('content-security-policy');
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /script-src 'self'(;|$)/, 'no inline scripts allowed');
+  assert.equal(r.headers.get('x-frame-options'), 'DENY');
   assert.equal(r.headers.get('x-powered-by'), null);
+  const page = await h.call('/');
+  assert.equal(page.status, 200);
+  assert.match(page.body, /<html lang="en">/);
+  const api = await h.call('/api/config');
+  assert.equal(api.headers.get('cache-control'), 'no-store');
 });
 
-test('create circle, wrong passcode rejected, family joins', async () => {
-  const s = await newCircle();
+test('unknown API routes return a localized 404', async () => {
+  const en = await h.call('/api/nope');
+  assert.equal(en.status, 404);
+  assert.equal(en.body.code, 'notFound');
+  const hi = await h.call('/api/nope', { lang: 'hi' });
+  assert.equal(hi.body.error, 'नहीं मिला');
+});
+
+test('create circle, wrong passcode rejected, family joins, secrets never leak', async () => {
+  const s = await h.newCircle();
   assert.match(s.profileId, /^CC-[0-9A-F]{8}$/);
-  const bad = await call('/api/login', { method: 'POST', body: { profileId: s.profileId, passcode: 'nope', name: 'X' } });
+  const bad = await h.call('/api/login', { method: 'POST', body: { profileId: s.profileId, passcode: 'nope', name: 'X' } });
   assert.equal(bad.status, 401);
-  const join = await call('/api/login', { method: 'POST', body: { profileId: s.profileId.toLowerCase(), passcode: 'secret123', name: 'Meera', email: 'meera@example.com', role: 'family' } });
+  assert.equal(bad.body.code, 'badCredentials');
+  const join = await h.call('/api/login', { method: 'POST', body: { profileId: s.profileId.toLowerCase(), passcode: 'secret123', name: 'Meera', email: 'meera@example.com', role: 'family', lang: 'hi' } });
   assert.equal(join.status, 200);
-  const me = await call('/api/me', { token: join.body.token });
+  assert.equal(join.body.member.lang, 'hi');
+  const me = await h.call('/api/me', { token: join.body.token });
   assert.equal(me.body.profile.members.length, 2);
-  assert.equal(me.body.profile.passcodeHash, undefined, 'hash must never leak');
+  assert.equal(me.body.profile.passcodeHash, undefined);
+  assert.equal(me.body.profile.doses, undefined);
+  // Signing in again with the same email reuses the member instead of duplicating it
+  const again = await h.call('/api/login', { method: 'POST', body: { profileId: s.profileId, passcode: 'secret123', name: 'Meera K', email: 'MEERA@example.com' } });
+  assert.equal(again.body.member.id, join.body.member.id);
 });
 
-test('unauthenticated access is blocked', async () => {
-  assert.equal((await call('/api/medications')).status, 401);
-  assert.equal((await call('/api/medications', { token: 'forged.token' })).status, 401);
+test('authentication is required and forged/expired tokens are rejected', async () => {
+  assert.equal((await h.call('/api/medications')).status, 401);
+  assert.equal((await h.call('/api/medications', { token: 'forged.token' })).status, 401);
+  const s = await h.newCircle();
+  const [body, sig] = s.token.split('.');
+  const tampered = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, 'base64url')), pid: 'CC-00000000' })).toString('base64url');
+  assert.equal((await h.call('/api/me', { token: `${tampered}.${sig}` })).status, 401);
 });
 
-test('validation errors return 400', async () => {
-  const s = await newCircle();
-  const r = await call('/api/medications', { method: 'POST', token: s.token, body: { name: 'X', times: ['25:00'] } });
+test('validation errors are 400 with field-aware messages in English and Hindi', async () => {
+  const s = await h.newCircle();
+  const r = await h.call('/api/medications', { method: 'POST', token: s.token, body: { name: 'X', times: ['25:00'] } });
   assert.equal(r.status, 400);
-  const r2 = await call('/api/profiles', { method: 'POST', body: { name: 'A', passcode: '123', yourName: 'B' } });
-  assert.equal(r2.status, 400);
+  assert.equal(r.body.code, 'invalidTimes');
+  const r2 = await h.call('/api/profiles', { method: 'POST', body: { name: 'A', passcode: '123', yourName: 'B' } });
+  assert.equal(r2.body.code, 'passcodeShort');
+  const r3 = await h.call('/api/medications', { method: 'POST', token: s.token, lang: 'hi', body: { name: '', times: ['08:00'] } });
+  assert.equal(r3.body.error, 'नाम आवश्यक है');
+  const r4 = await h.call('/api/medications', { method: 'POST', token: s.token, body: { name: 'A'.repeat(101), times: ['08:00'] } });
+  assert.equal(r4.body.code, 'tooLong');
+  const r5 = await h.call('/api/appointments', { method: 'POST', token: s.token, body: { doctor: 'X', date: '2026-02-30', time: '10:00' } });
+  assert.equal(r5.body.code, 'invalidDate');
+  const r6 = await h.call('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, raw: '{bad json' });
+  assert.equal(r6.status, 400);
 });
 
-test('medication CRUD, dose tracking and stock', async () => {
-  const s = await newCircle();
-  const created = await call('/api/medications', { method: 'POST', token: s.token, body: { name: 'Metformin', dosage: '500mg', times: ['23:59', '23:58'], stock: 10 } });
+test('medication CRUD, dose tracking, undo and stock accounting', async () => {
+  const s = await h.newCircle();
+  const created = await h.call('/api/medications', { method: 'POST', token: s.token, body: { name: 'Metformin', dosage: '500mg', times: ['23:59', '23:58'], stock: 10 } });
   assert.equal(created.status, 201);
   const med = created.body;
   assert.deepEqual(med.times, ['23:58', '23:59']);
+  assert.equal(med.daysLeft, 5);
   const today = localParts().date;
-  const dose = await call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '23:58', status: 'taken' } });
+  const dose = await h.call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '23:58', status: 'taken' } });
   assert.equal(dose.status, 200);
   assert.equal(dose.body.items.find((i) => i.time === '23:58').status, 'taken');
-  let list = await call('/api/medications', { token: s.token });
-  assert.equal(list.body[0].stock, 9);
-  await call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '23:58', status: 'undo' } });
-  list = await call('/api/medications', { token: s.token });
-  assert.equal(list.body[0].stock, 10);
-  const future = await call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: addDays(today, 2), time: '23:58', status: 'taken' } });
-  assert.equal(future.status, 400);
-  const upd = await call(`/api/medications/${med.id}`, { method: 'PUT', token: s.token, body: { dosage: '1000mg' } });
+  assert.equal(dose.body.stock, 9);
+  const redo = await h.call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '23:58', status: 'taken' } });
+  assert.equal(redo.body.stock, 9, 'marking taken twice does not double-count stock');
+  const undo = await h.call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '23:58', status: 'undo' } });
+  assert.equal(undo.body.stock, 10);
+  const future = await h.call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: addDays(today, 2), time: '23:58', status: 'taken' } });
+  assert.equal(future.body.code, 'futureDose');
+  const wrongSlot = await h.call('/api/doses', { method: 'POST', token: s.token, body: { medId: med.id, date: today, time: '10:00', status: 'taken' } });
+  assert.equal(wrongSlot.body.code, 'timeNotInSchedule');
+  const upd = await h.call(`/api/medications/${med.id}`, { method: 'PUT', token: s.token, body: { dosage: '1000mg' } });
   assert.equal(upd.body.dosage, '1000mg');
   assert.equal(upd.body.name, 'Metformin');
-  assert.equal((await call(`/api/medications/${med.id}`, { method: 'DELETE', token: s.token })).status, 204);
-  assert.equal((await call(`/api/medications/${med.id}`, { method: 'DELETE', token: s.token })).status, 404);
+  const badDates = await h.call(`/api/medications/${med.id}`, { method: 'PUT', token: s.token, body: { startDate: '2026-02-01', endDate: '2026-01-01' } });
+  assert.equal(badDates.body.code, 'endBeforeStart');
+  assert.equal((await h.call(`/api/medications/${med.id}`, { method: 'DELETE', token: s.token })).status, 204);
+  assert.equal((await h.call(`/api/medications/${med.id}`, { method: 'DELETE', token: s.token })).status, 404);
+});
+
+test('dashboard, history, adherence, risk and activity read models', async () => {
+  const s = await h.newCircle();
+  await h.call('/api/medications', { method: 'POST', token: s.token, body: { name: 'A', times: ['23:59'] } });
+  const d = await h.call('/api/dashboard', { token: s.token });
+  assert.equal(d.status, 200);
+  for (const k of ['schedule', 'insights', 'risk', 'adherence', 'now']) assert.ok(k in d.body, k);
+  const hist = await h.call('/api/history?days=5', { token: s.token });
+  assert.equal(hist.body.length, 5);
+  assert.equal((await h.call('/api/adherence?days=500', { token: s.token })).status, 400);
+  const act = await h.call('/api/activity', { token: s.token });
+  assert.deepEqual(act.body.map((a) => a.key).slice(0, 2), ['actMedAdd', 'actCreated']);
 });
 
 test('appointments CRUD', async () => {
-  const s = await newCircle();
-  const a = await call('/api/appointments', { method: 'POST', token: s.token, body: { doctor: 'Dr. Rao', date: '2030-01-01', time: '10:30', location: 'City Clinic' } });
+  const s = await h.newCircle();
+  const a = await h.call('/api/appointments', { method: 'POST', token: s.token, body: { doctor: 'Dr. Rao', date: '2030-01-01', time: '10:30', location: 'City Clinic' } });
   assert.equal(a.status, 201);
-  const u = await call(`/api/appointments/${a.body.id}`, { method: 'PUT', token: s.token, body: { time: '11:00' } });
+  const u = await h.call(`/api/appointments/${a.body.id}`, { method: 'PUT', token: s.token, body: { time: '11:00' } });
   assert.equal(u.body.time, '11:00');
-  assert.equal((await call('/api/appointments', { token: s.token })).body.length, 1);
-  assert.equal((await call(`/api/appointments/${a.body.id}`, { method: 'DELETE', token: s.token })).status, 204);
+  assert.equal(u.body.location, 'City Clinic');
+  assert.equal((await h.call('/api/appointments', { token: s.token })).body.length, 1);
+  assert.equal((await h.call(`/api/appointments/${a.body.id}`, { method: 'DELETE', token: s.token })).status, 204);
+  assert.equal((await h.call(`/api/appointments/${a.body.id}`, { method: 'PUT', token: s.token, body: {} })).status, 404);
 });
 
-test('changing passcode invalidates old sessions', async () => {
-  const s = await newCircle();
-  const r = await call('/api/profile/passcode', { method: 'PUT', token: s.token, body: { current: 'secret123', next: 'newsecret' } });
+test('members: invite, update preferences, cannot remove the last member', async () => {
+  const s = await h.newCircle();
+  const inv = await h.call('/api/members', { method: 'POST', token: s.token, body: { name: 'Neel', email: 'neel@example.com', role: 'family' } });
+  assert.equal(inv.status, 201);
+  const dup = await h.call('/api/members', { method: 'POST', token: s.token, body: { name: 'Neel', email: 'neel@example.com' } });
+  assert.equal(dup.status, 200);
+  const off = await h.call(`/api/members/${inv.body.id}`, { method: 'PUT', token: s.token, body: { notify: false } });
+  assert.equal(off.body.notify, false);
+  assert.equal((await h.call(`/api/members/${inv.body.id}`, { method: 'DELETE', token: s.token })).status, 204);
+  const last = await h.call(`/api/members/${s.member.id}`, { method: 'DELETE', token: s.token });
+  assert.equal(last.body.code, 'lastMember');
+  const lang = await h.call('/api/me', { method: 'PUT', token: s.token, body: { lang: 'hi' } });
+  assert.equal(lang.body.lang, 'hi');
+});
+
+test('changing the passcode invalidates every other session', async () => {
+  const s = await h.newCircle();
+  const wrong = await h.call('/api/profile/passcode', { method: 'PUT', token: s.token, body: { current: 'nope', next: 'newsecret' } });
+  assert.equal(wrong.status, 403);
+  const r = await h.call('/api/profile/passcode', { method: 'PUT', token: s.token, body: { current: 'secret123', next: 'newsecret' } });
   assert.equal(r.status, 200);
-  assert.equal((await call('/api/me', { token: s.token })).status, 401);
-  assert.equal((await call('/api/me', { token: r.body.token })).status, 200);
+  assert.equal((await h.call('/api/me', { token: s.token })).status, 401);
+  assert.equal((await h.call('/api/me', { token: r.body.token })).status, 200);
+  const login = await h.call('/api/login', { method: 'POST', body: { profileId: s.profileId, passcode: 'newsecret', name: 'Ravi', email: 'ravi@example.com' } });
+  assert.equal(login.status, 200);
 });
 
-function fixture() {
-  return {
-    id: 'CC-TEST', name: 'Asha',
-    members: [{ id: 'm1', name: 'Ravi', email: 'ravi@example.com', role: 'caretaker', notify: true }, { id: 'm2', name: 'Off', email: 'off@example.com', role: 'family', notify: false }],
-    medications: [{ id: 'med1', name: 'Aspirin', dosage: '75mg', times: ['08:00', '20:00'], stock: 4, active: true }],
-    doses: [{ medId: 'med1', date: '2026-01-10', time: '08:00', status: 'taken' }],
-    appointments: [{ id: 'a1', doctor: 'Dr. Rao', date: '2026-01-11', time: '09:00' }],
-    activity: [],
-  };
-}
-
-test('schedule statuses: taken, missed, due, pending', () => {
-  const p = fixture();
-  const at = (minutes) => ({ date: '2026-01-10', minutes });
-  assert.deepEqual(scheduleFor(p, '2026-01-10', at(9 * 60)).map((s) => s.status), ['taken', 'pending']);
-  assert.equal(scheduleFor(p, '2026-01-10', at(20 * 60 + 5))[1].status, 'due');
-  assert.equal(scheduleFor(p, '2026-01-10', at(21 * 60))[1].status, 'missed');
+test('profile updates are validated and logged', async () => {
+  const s = await h.newCircle();
+  const r = await h.call('/api/profile', { method: 'PUT', token: s.token, body: { allergies: 'Penicillin', dob: '1950-05-05' } });
+  assert.equal(r.body.allergies, 'Penicillin');
+  assert.equal((await h.call('/api/profile', { method: 'PUT', token: s.token, body: { dob: 'yesterday' } })).status, 400);
 });
 
-test('adherence and insights', () => {
-  const p = fixture();
-  const a = adherence(p, 1, { date: '2026-01-10', minutes: 23 * 60 });
-  assert.equal(a.taken, 1); assert.equal(a.total, 2); assert.equal(a.rate, 50);
-  const ins = insights(p, { date: '2026-01-10', minutes: 600 });
-  assert.ok(ins.some((i) => i.type === 'refill'));
-  assert.ok(ins.some((i) => i.type === 'appointment'));
+test('demo creates a private, pre-filled circle with reminders in the outbox', async () => {
+  const r = await h.call('/api/demo', { method: 'POST', body: { lang: 'en' } });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.passcode, 'demo1234');
+  const me = await h.call('/api/me', { token: r.body.token });
+  assert.equal(me.body.profile.demo, true);
+  assert.ok(me.body.profile.medications.length >= 3);
+  const box = await h.call('/api/reminders/outbox', { token: r.body.token });
+  assert.ok(box.body.messages.some((m) => m.subject.startsWith('Refill needed')));
+  const other = await h.call('/api/demo', { method: 'POST', body: {} });
+  assert.notEqual(other.body.profileId, r.body.profileId, 'each visitor gets their own copy');
 });
 
-test('reminders: upcoming, missed, appointment, refill; deduped; respects opt-out', async () => {
-  const p = fixture();
-  const s = new Store(null); s.saveProfile(p);
-  const up = collectReminders(p, s, { date: '2026-01-10', minutes: 19 * 60 + 50 });
-  const subjects = up.map((r) => r.msg.subject);
-  assert.ok(subjects.some((x) => x.startsWith('Upcoming dose')));
-  assert.ok(subjects.some((x) => x.startsWith('Appointment tomorrow')));
-  assert.ok(subjects.some((x) => x.startsWith('Refill needed')));
-  assert.ok(up.every((r) => !r.msg.to.includes('off@example.com')));
-  const m = createMailer();
-  const now = { date: '2026-01-10', minutes: 21 * 60 };
-  const sent = await runReminders(s, m, now);
-  assert.ok(m.outbox.some((x) => x.subject.startsWith('Missed dose')));
-  assert.equal(await runReminders(s, m, now), 0, 'no duplicate emails');
-  assert.ok(sent > 0);
+test('reminder endpoints: manual run and protected cron tick', async () => {
+  const s = await h.newCircle();
+  await h.call('/api/medications', { method: 'POST', token: s.token, body: { name: 'Low', times: ['23:59'], stock: 1 } });
+  const run = await h.call('/api/reminders/run', { method: 'POST', token: s.token });
+  assert.ok(run.body.sent >= 1);
+  const again = await h.call('/api/reminders/run', { method: 'POST', token: s.token });
+  assert.equal(again.body.sent, 0, 'reminders are deduplicated');
+  assert.equal((await h.call('/internal/reminders/tick', { method: 'POST' })).status, 403);
+  process.env.CRON_SECRET = 'cron-test-secret';
+  try {
+    assert.equal((await h.call('/internal/reminders/tick', { headers: { Authorization: 'Bearer wrong' } })).status, 403);
+    const ok = await h.call('/internal/reminders/tick', { headers: { Authorization: 'Bearer cron-test-secret' } });
+    assert.equal(ok.status, 200);
+  } finally { delete process.env.CRON_SECRET; }
 });
 
-test('cron endpoint requires secret', async () => {
-  assert.equal((await call('/internal/reminders/tick', { method: 'POST' })).status, 403);
+test('AI endpoints answer 503 when no Groq key is configured', async () => {
+  const s = await h.newCircle();
+  const r = await h.call('/api/ai/chat', { method: 'POST', token: s.token, body: { messages: [{ role: 'user', content: 'hi' }] } });
+  assert.equal(r.status, 503);
+  assert.equal(r.body.code, 'aiUnavailable');
+  assert.equal((await h.call('/api/config')).body.ai, false);
 });

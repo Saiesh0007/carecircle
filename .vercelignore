@@ -1,4 +1,10 @@
 node_modules
 data
 test
+.github
 .env
+*.md
+!README.md
+eslint.config.js
+Dockerfile
+.dockerignore
