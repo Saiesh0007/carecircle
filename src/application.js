@@ -39,7 +39,9 @@ function createApp({ store, mailer }) {
   app.set('trust proxy', 1);
   app.use(securityHeaders);
   app.use(express.json({ limit: '50kb' }));
-  app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+  const publicDir = path.join(__dirname, '..', 'public');
+  app.get('/', (req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.use(express.static(publicDir, { maxAge: '1h', index: false }));
 
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: Number(process.env.AUTH_RATE_MAX || 20) });
   const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);

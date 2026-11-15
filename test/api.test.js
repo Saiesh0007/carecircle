@@ -1,7 +1,7 @@
 'use strict';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createApp } = require('../src/app');
+const { createApp } = require('../src/application');
 const { Store } = require('../src/store');
 const { createMailer, collectReminders, runReminders } = require('../src/reminders');
 const { scheduleFor, adherence, insights } = require('../src/care');
